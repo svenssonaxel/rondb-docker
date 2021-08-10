@@ -1,4 +1,5 @@
 # Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2021, 2021, Logical Clocks AB and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,26 +15,48 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 [ndbd default]
-NoOfReplicas=2
-DataMemory=80M
-IndexMemory=18M
-
+NoOfReplicas=3
+ServerPort=11860
+DataDir=/var/lib/rondb
+TotalMemoryConfig=3G
+MaxNoOfTables=512
+MaxNoOfAttributes=8000
+MaxNoOfTriggers=20000
+TransactionMemory=300M
+SharedGlobalMemory=500M
 
 [ndb_mgmd]
-NodeId=1
+NodeId=65
 hostname=192.168.0.2
-datadir=/var/lib/mysql
+DataDir=/var/lib/rondb
+
+[ndb_mgmd]
+NodeId=66
+hostname=192.168.0.3
+NodeActive=0
+
+[ndbd]
+NodeId=1
+hostname=192.168.0.4
 
 [ndbd]
 NodeId=2
-hostname=192.168.0.3
-datadir=/var/lib/mysql
+hostname=192.168.0.5
 
 [ndbd]
 NodeId=3
-hostname=192.168.0.4
-datadir=/var/lib/mysql
+hostname=192.168.0.6
+NodeActive=0
 
 [mysqld]
-NodeId=4
+NodeId=67
 hostname=192.168.0.10
+
+[mysqld]
+NodeId=68
+hostname=192.168.0.10
+
+[mysqld]
+NodeId=69
+hostname=192.168.0.10
+

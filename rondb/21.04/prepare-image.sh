@@ -1,4 +1,6 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+#!/bin/bash
+# Copyright (c) 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2021 Logical Clocks AB and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,27 +15,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-[ndbd default]
-NoOfReplicas=2
-DataMemory=80M
-IndexMemory=18M
 
+# Create directories needed by mysqld and make them writable by group 0
+mysql_dirs="/var/lib/mysql /var/lib/mysql-files /var/lib/mysql-keyring /var/run/mysqld /var/lib/rondb"
 
-[ndb_mgmd]
-NodeId=1
-hostname=192.168.0.2
-datadir=/var/lib/mysql
-
-[ndbd]
-NodeId=2
-hostname=192.168.0.3
-datadir=/var/lib/mysql
-
-[ndbd]
-NodeId=3
-hostname=192.168.0.4
-datadir=/var/lib/mysql
-
-[mysqld]
-NodeId=4
-hostname=192.168.0.10
+for dir in $mysql_dirs; do
+    mkdir -p $dir
+    chmod g+rwx $dir
+    chgrp -R 0 $dir
+done

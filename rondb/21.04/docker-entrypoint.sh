@@ -1,5 +1,6 @@
 #!/bin/bash
 # Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2021, Logical Clocks AB and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 set -e
 
-echo "[Entrypoint] MySQL Docker Image 8.0.26-1.2.4-server"
+echo "[Entrypoint] RonDB Docker Image 21.04.1-1.2.4-cluster"
 # Fetch value from server config
 # We use mysqld --verbose --help instead of my_print_defaults because the
 # latter only show values present in config files, and not server defaults
@@ -88,8 +89,8 @@ if [ "$1" = 'mysqld' ]; then
 
 		echo '[Entrypoint] Initializing database'
 		"$@" --user=$MYSQLD_USER --initialize-insecure
-
 		echo '[Entrypoint] Database initialized'
+
 		"$@" --user=$MYSQLD_USER --daemonize --skip-networking --socket="$SOCKET"
 
 		# To avoid using password on commandline, put it in a temporary file.
@@ -100,16 +101,19 @@ if [ "$1" = 'mysqld' ]; then
 		# "SET @@SESSION.SQL_LOG_BIN=0;" is required for products like group replication to work properly
 		mysql=( mysql --defaults-extra-file="$PASSFILE" --protocol=socket -uroot -hlocalhost --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;")
 
-		for i in {30..0}; do
-			if mysqladmin --socket="$SOCKET" ping &>/dev/null; then
-				break
+		if [ ! -z  ];
+		then
+			for i in {30..0}; do
+				if mysqladmin --socket="$SOCKET" ping &>/dev/null; then
+					break
+				fi
+				echo '[Entrypoint] Waiting for server...'
+				sleep 1
+			done
+			if [ "$i" = 0 ]; then
+				echo >&2 '[Entrypoint] Timeout during MySQL init.'
+				exit 1
 			fi
-			echo '[Entrypoint] Waiting for server...'
-			sleep 1
-		done
-		if [ "$i" = 0 ]; then
-			echo >&2 '[Entrypoint] Timeout during MySQL init.'
-			exit 1
 		fi
 
 		mysql_tzinfo_to_sql /usr/share/zoneinfo | "${mysql[@]}" mysql
@@ -174,21 +178,25 @@ EOF
 
 		# This needs to be done outside the normal init, since mysqladmin shutdown will not work after
 		if [ ! -z "$MYSQL_ONETIME_PASSWORD" ]; then
-			echo "[Entrypoint] Setting root user as expired. Password will need to be changed before database can be used."
-			SQL=$(mktemp -u /var/lib/mysql-files/XXXXXXXXXX)
-			$install_devnull "$SQL"
-			if [ ! -z "$MYSQL_ROOT_HOST" ]; then
-				cat << EOF > "$SQL"
+			if [ -z %%EXPIRE_SUPPORT%% ]; then
+				echo "[Entrypoint] User expiration is only supported in MySQL 5.6+"
+			else
+				echo "[Entrypoint] Setting root user as expired. Password will need to be changed before database can be used."
+				SQL=$(mktemp -u /var/lib/mysql-files/XXXXXXXXXX)
+				$install_devnull "$SQL"
+				if [ ! -z "$MYSQL_ROOT_HOST" ]; then
+					cat << EOF > "$SQL"
 ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE;
 ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
 EOF
-			else
-				cat << EOF > "$SQL"
+				else
+					cat << EOF > "$SQL"
 ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
 EOF
+				fi
+				set -- "$@" --init-file="$SQL"
+				unset SQL
 			fi
-			set -- "$@" --init-file="$SQL"
-			unset SQL
 		fi
 
 		echo
@@ -212,11 +220,34 @@ EOF
 		echo "[Entrypoint] MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
 		exit 0
 	else
-		echo "[Entrypoint] Starting MySQL 8.0.26-1.2.4-server"
+		echo "[Entrypoint] Starting RonDB 21.0.4.1-1.2.4-cluster"
 	fi
-	# 4th value of /proc/$pid/stat is the ppid, same as getppid()
-	export MYSQLD_PARENT_PID=$(cat /proc/$$/stat|cut -d\  -f4)
-	exec "$@" --user=$MYSQLD_USER
+	export MYSQLD_PARENT_PID=$$ ; exec "$@" --user=
 else
+	if [ -n "$MYSQL_INITIALIZE_ONLY" ]; then
+		echo "[Entrypoint] MySQL already initialized and MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
+		exit 0
+	fi
+	if [ "$1" == "ndb_mgmd" ]; then
+		echo "[Entrypoint] Starting ndb_mgmd"
+		set -- "$@" -f /etc/rondb.cnf --nodaemon --configdir=/var/lib/rondb
+
+	elif [ "$1" == "ndbmtd" ]; then
+		echo "[Entrypoint] Starting ndbmtd"
+		set -- "$@" --nodaemon
+
+	elif [ "$1" == "ndb_mgm" ]; then
+		echo "[Entrypoint] Starting ndb_mgm"
+
+	elif [ "$1" == "ndb_waiter" ]; then
+		if [ "%%NDBWAITER%%" == "yes" ]; then
+			echo "[Entrypoint] Starting ndb_waiter"
+			set -- "$@" --nodaemon
+		else
+			echo "[Entrypoint] ndb_waiter not supported"
+			exit 1
+		fi
+	fi
 	exec "$@"
 fi
+
