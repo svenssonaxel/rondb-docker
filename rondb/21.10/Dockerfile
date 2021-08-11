@@ -16,11 +16,11 @@
 
 FROM oraclelinux:8-slim
 
-ARG RONDB_VERSION=rondb-21.04.1
+ARG RONDB_VERSION=rondb-21.10.1
 
 RUN microdnf install wget tar gzip ncurses-compat-libs
 
-# Install RonDB 21.04.1
+# Install RonDB 21.10.1
 RUN wget http://repo.hops.works/master/$RONDB_VERSION-linux-glibc2.17-x86_64.tar.gz \
     && tar xfz $RONDB_VERSION-linux-glibc2.17-x86_64.tar.gz \
     && rm $RONDB_VERSION-linux-glibc2.17-x86_64.tar.gz \
