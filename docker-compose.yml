@@ -1,0 +1,29 @@
+version: "3.7"
+
+services:
+  mgm1:
+    image: rondb:21.04.6
+    build: .
+    command: [ "ndb_mgmd", "--ndb-nodeid=65", "--initial" ]
+  dn1:
+    image: rondb:21.04.6
+    build: .
+    depends_on:
+      - mgm1
+    command: [ "ndbmtd", "--ndb-nodeid=1", "--initial" ]
+  dn2:
+    image: rondb:21.04.6
+    build: .
+    depends_on:
+      - mgm1
+    command: [ "ndbmtd", "--ndb-nodeid=2", "--initial" ]
+  mysqld1:
+    image: rondb:21.04.6
+    build: .
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    depends_on:
+      - mgm1
+      - dn1
+      - dn2
+    command: [ "mysqld", "--ndb-cluster-connection-pool-nodeids=67" ]
