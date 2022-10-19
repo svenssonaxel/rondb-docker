@@ -35,8 +35,11 @@ else
 	MYSQLD_USER=$(id -u)
 fi
 
+# https://stackoverflow.com/a/246128/9068781
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 if [ "$1" = 'mysqld' ]; then
-    ./mysqld.sh "$@"
+    $SCRIPT_DIR/mysqld.sh "$@"
 else
 	if [ -n "$MYSQL_INITIALIZE_ONLY" ]; then
 		echo "[Entrypoint] MySQL already initialized and MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
