@@ -6,6 +6,8 @@
 ## i. Creates docker-compose file (with given configuration)
 ## i. Runs docker-compose
 
+set -e
+
 function print_usage() {
     cat <<EOF
 Usage:
@@ -61,12 +63,12 @@ while [[ $# -gt 0 ]]; do
         shift # past value
         ;;
     -s | --num_mysql_nodes)
-        NUM_API_NODES="$2"
+        NUM_MYSQL_NODES="$2"
         shift # past argument
         shift # past value
         ;;
     -a | --num_api_nodes)
-        NUM_MYSQL_NODES="$2"
+        NUM_API_NODES="$2"
         shift # past argument
         shift # past value
         ;;
@@ -106,7 +108,7 @@ if [[ -n $1 ]]; then
 fi
 
 FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_d${NUM_DATA_NODES}_s${NUM_MYSQL_NODES}_s${NUM_API_NODES}_r${REPLICATION_FACTOR}"
-DOCKER_COMPOSE_FILEPATH="./docker_compose$FILE_SUFFIX.yml"
+DOCKER_COMPOSE_FILEPATH="./docker_compose_$FILE_SUFFIX.yml"
 CONFIG_INI_FILEPATH="./config_$FILE_SUFFIX.ini"
 MY_CNF_FILEPATH="./my_$FILE_SUFFIX.cnf"
 
@@ -117,12 +119,10 @@ MY_CNF_FILEPATH="./my_$FILE_SUFFIX.cnf"
 echo "Building RonDB Docker image"
 
 RONDB_IMAGE_NAME="rondb:$RONDB_VERSION"
-DOCKER_BUILDKIT=1 docker build . \
+docker buildx build . --platform=$BUILD_PLATFORM \
     --tag $RONDB_IMAGE_NAME \
-    --platform $BUILD_PLATFORM \
-    --build-arg \
-        RONDB_VERSION=$RONDB_VERSION \
-        GLIBC_VERSION=$GLIBC_VERSION \
+    --build-arg RONDB_VERSION=$RONDB_VERSION \
+    --build-arg GLIBC_VERSION=$GLIBC_VERSION
 
 #######################
 #######################
@@ -140,6 +140,7 @@ MY_CNF_TEMPLATE=$(cat ./resources/config_templates/my.cnf)
 
 # Doing restart on-failure for the agent upgrade; we return a failure there
 RONDB_DOCKER_COMPOSE_TEMPLATE="
+
     <insert-service-name>:
       image: $RONDB_IMAGE_NAME
       container_name: <insert-service-name>        
@@ -147,18 +148,18 @@ RONDB_DOCKER_COMPOSE_TEMPLATE="
 "
 
 # Bind config.ini to mgmd containers
-BIND_CONFIG_INI_TEMPLATE="      volumes:
+BIND_CONFIG_INI_TEMPLATE="
+      volumes:
       - type: bind
         source: $CONFIG_INI_FILEPATH
-        target: /srv/hops/mysql-cluster/config.ini
-"
+        target: /srv/hops/mysql-cluster/config.ini"
 
 # Bind my.cnf to mgmd containers
-BIND_MY_CNF_TEMPLATE="      volumes:
+BIND_MY_CNF_TEMPLATE="
+      volumes:
       - type: bind
         source: $MY_CNF_FILEPATH
-        target: /srv/hops/mysql-cluster/my.cnf
-"
+        target: /srv/hops/mysql-cluster/my.cnf"
 
 #######################
 #######################
@@ -170,7 +171,7 @@ CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" "$REPLICATION_FACTOR")
 MGM_CONNECTION_STRING=''
 BASE_DOCKER_COMPOSE_FILE="version: '3.7'
 
-"
+services:"
 
 for i in $(seq $NUM_MGM_NODES); do
     template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
@@ -182,7 +183,8 @@ for i in $(seq $NUM_MGM_NODES); do
     NODE_ID=$((65 + $(($CONTAINER_NUM - 1)) ))
     # NodeId, HostName, PortNumber, NodeActive, ArbitrationRank
     SLOT=$(printf "$CONFIG_INI_MGMD_TEMPLATE" "$NODE_ID" "$SERVICE_NAME" "1186" "1" "0")
-    CONFIG_INI+=$SLOT
+    CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
+
     MGM_CONNECTION_STRING+="$SERVICE_NAME:1186,"
 done
 
@@ -190,14 +192,15 @@ done
 NUM_NODE_GROUPS=$(($NUM_DATA_NODES / $REPLICATION_FACTOR))
 for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
-    SERVICE_NAME="ndbd_$i"
+    SERVICE_NAME="ndbd_$CONTAINER_NUM"
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     BASE_DOCKER_COMPOSE_FILE+="$template"
+
     NODE_ID=$((1 + $(($CONTAINER_NUM - 1)) ))
     NODE_GROUP=$(($CONTAINER_NUM % $NUM_NODE_GROUPS))
     # NodeId, NodeGroup, NodeActive, HostName, ServerPort, FileSystemPath (NodeId)
     SLOT=$(printf "$CONFIG_INI_NDBD_TEMPLATE" "$NODE_ID" "$NODE_GROUP" "1" "$SERVICE_NAME" "11860" "$NODE_ID")
-    CONFIG_INI+=$SLOT
+    CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
 done
 
 SLOTS_PER_CONTAINER=2  # Cannot scale out a lot on a single machine
@@ -213,7 +216,7 @@ for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
         NODE_ID=$((67 + $NODE_ID_OFFSET + $(($SLOT_NUM - 1)) ))
         # NodeId, NodeActive, ArbitrationRank, HostName
         SLOT=$(printf "$CONFIG_INI_MYSQLD_TEMPLATE" "$NODE_ID" "1" "1" "$SERVICE_NAME")
-        CONFIG_INI+=$SLOT
+        CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
     done
 done
 
