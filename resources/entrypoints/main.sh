@@ -56,7 +56,7 @@ else
 	set -- "$@" --nodaemon
 	if [ "$1" == "ndb_mgmd" ]; then
 		echo "[Entrypoint] Starting ndb_mgmd"
-		set -- "$@" -f /etc/rondb.cnf --configdir=/var/lib/rondb
+		set -- "$@" -f /srv/hops/mysql-cluster/mgmd/config.ini --configdir=/var/lib/rondb
 	elif [ "$1" == "ndbmtd" ]; then
 		echo "[Entrypoint] Starting ndbmtd"
 	elif [ "$1" == "ndb_mgm" ]; then
