@@ -42,21 +42,25 @@ else
 		echo "[Entrypoint] MySQL already initialized and MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
 		exit 0
 	fi
+
+	# "set" lets us set the arguments to the current script.
+	# the command also has its own commands (see set --help).
+	# to avoid accidentally using one of the set-commands,
+	# we use "set --" to make clear that everything following
+	# this is an argument to the script itself and not the set
+	# command.
+
+	set -- "$@" --nodaemon
 	if [ "$1" == "ndb_mgmd" ]; then
 		echo "[Entrypoint] Starting ndb_mgmd"
-		set -- "$@" -f /etc/rondb.cnf --nodaemon --configdir=/var/lib/rondb
-
+		set -- "$@" -f /etc/rondb.cnf --configdir=/var/lib/rondb
 	elif [ "$1" == "ndbmtd" ]; then
 		echo "[Entrypoint] Starting ndbmtd"
-		set -- "$@" --nodaemon
-
 	elif [ "$1" == "ndb_mgm" ]; then
 		echo "[Entrypoint] Starting ndb_mgm"
-
 	elif [ "$1" == "ndb_waiter" ]; then
 		if [ "%%NDBWAITER%%" == "yes" ]; then
 			echo "[Entrypoint] Starting ndb_waiter"
-			set -- "$@" --nodaemon
 		else
 			echo "[Entrypoint] ndb_waiter not supported"
 			exit 1
