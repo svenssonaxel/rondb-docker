@@ -44,9 +44,6 @@ RUN mkdir -p $MYSQLD_DATA_DIR
 ENV SCRIPTS_DIR=$DATA_DIR/ndb/scripts
 RUN mkdir -p $SCRIPTS_DIR
 
-# Need to create it so we can mount it later on (apparently)
-RUN touch $DATA_DIR/config.ini
-RUN touch $DATA_DIR/my.cnf
 COPY ./resources/rondb_scripts $SCRIPTS_DIR
 
 RUN touch $DATA_DIR/mysql.sock
@@ -57,6 +54,7 @@ RUN groupadd mysql && adduser mysql --ingroup mysql
 # ENV MYSQL_UNIX_PORT /var/lib/mysql/mysql.sock
 
 COPY ./resources/entrypoints /tmp/entrypoints
+RUN chmod +x /tmp/entrypoints/*
 
 VOLUME $DATA_DIR/config.ini
 
