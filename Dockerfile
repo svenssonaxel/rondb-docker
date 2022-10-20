@@ -41,24 +41,29 @@ RUN mkdir -p $MGMD_DATA_DIR
 RUN mkdir -p $NDBD_DATA_DIR
 RUN mkdir -p $MYSQLD_DATA_DIR
 
+ENV LOG_DIR=$DATA_DIR/log
 ENV SCRIPTS_DIR=$DATA_DIR/ndb/scripts
+ENV BACKUP_DATA_DIR=$DATA_DIR/ndb/backups
+ENV DISK_COLUMNS_DIR=$DATA_DIR/ndb_disk_columns
+ENV MYSQL_UNIX_PORT=$DATA_DIR/mysql.sock
+
+RUN mkdir -p $LOG_DIR
 RUN mkdir -p $SCRIPTS_DIR
+RUN mkdir -p $BACKUP_DATA_DIR
+RUN mkdir -p $DISK_COLUMNS_DIR
 
 COPY ./resources/rondb_scripts $SCRIPTS_DIR
-
-RUN touch $DATA_DIR/mysql.sock
+RUN touch $MYSQL_UNIX_PORT
 
 RUN groupadd mysql && adduser mysql --ingroup mysql
 
 # RUN chmod -R 755 /var/lib/mysql
-# ENV MYSQL_UNIX_PORT /var/lib/mysql/mysql.sock
 
 # we expect this image to be used as base image to other
 # images with additional entrypoints
 COPY ./resources/entrypoints ./docker_entrypoints/rondb_standalone
 RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
-VOLUME $DATA_DIR/config.ini
 
 ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
