@@ -158,14 +158,14 @@ BIND_CONFIG_INI_TEMPLATE="
       volumes:
       - type: bind
         source: $CONFIG_INI_FILEPATH
-        target: /srv/hops/mysql-cluster/mgmd/config.ini"
+        target: /srv/hops/mysql-cluster/config.ini"
 
 # Bind my.cnf to mgmd containers
 BIND_MY_CNF_TEMPLATE="
       volumes:
       - type: bind
         source: $MY_CNF_FILEPATH
-        target: /srv/hops/mysql-cluster/mysqld/my.cnf"
+        target: /srv/hops/mysql-cluster/my.cnf"
 
 COMMAND_TEMPLATE="
       command: [ %s ]"
