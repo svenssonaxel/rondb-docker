@@ -1,3 +1,5 @@
+set -e
+
 # Fetch value from server config
 # We use mysqld --verbose --help instead of my_print_defaults because the
 # latter only show values present in config files, and not server defaults
@@ -18,12 +20,13 @@ _mkpw() {
 # Test that the server can start. We redirect stdout to /dev/null so
 # only the error messages are left.
 result=0
-output=$("$@" --validate-config) || result=$?
+output=$("$@" --defaults-file=$RONDB_DATA_DIR/my.cnf --validate-config) || result=$?
 if [ ! "$result" = "0" ]; then
     echo >&2 '[Entrypoint] ERROR: Unable to start MySQL. Please check your configuration.'
     echo >&2 "[Entrypoint] $output"
     exit 1
 fi
+echo "[Entrypoint] Configuration has been validated"
 
 # Get config
 SOCKET="$(_get_config 'socket' "$@")"
@@ -38,6 +41,7 @@ if [ -f "$MYSQL_ROOT_PASSWORD" ]; then
         exit 1
     fi
 fi
+
 if [ -z "$MYSQL_ROOT_PASSWORD" -a -z "$MYSQL_ALLOW_EMPTY_PASSWORD" -a -z "$MYSQL_RANDOM_ROOT_PASSWORD" ]; then
     echo >&2 '[Entrypoint] No password option specified for new database.'
     echo >&2 '[Entrypoint]   A random onetime password will be generated.'
@@ -45,12 +49,22 @@ if [ -z "$MYSQL_ROOT_PASSWORD" -a -z "$MYSQL_ALLOW_EMPTY_PASSWORD" -a -z "$MYSQL
     MYSQL_ONETIME_PASSWORD=true
 fi
 
-
 echo '[Entrypoint] Initializing database'
-"$@" --user=$MYSQLD_USER --initialize-insecure
+
+"$@" \
+    --defaults-file=$RONDB_DATA_DIR/my.cnf \
+    --log-error-verbosity=3 \
+    --user=$MYSQLD_USER  \
+    --initialize-insecure
+
 echo '[Entrypoint] Database initialized'
 
-"$@" --user=$MYSQLD_USER --daemonize --skip-networking --socket="$SOCKET"
+"$@" \
+    --defaults-file=$RONDB_DATA_DIR/my.cnf \
+    --log-error-verbosity=3 \
+    --user=$MYSQLD_USER \
+    --daemonize \
+    --skip-networking
 
 # To avoid using password on commandline, put it in a temporary file.
 # The file is only populated when and if the root password is set.
