@@ -53,11 +53,13 @@ RUN groupadd mysql && adduser mysql --ingroup mysql
 # RUN chmod -R 755 /var/lib/mysql
 # ENV MYSQL_UNIX_PORT /var/lib/mysql/mysql.sock
 
-COPY ./resources/entrypoints /tmp/entrypoints
-RUN chmod +x /tmp/entrypoints/*
+# we expect this image to be used as base image to other
+# images with additional entrypoints
+COPY ./resources/entrypoints ./docker_entrypoints/rondb_standalone
+RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
 VOLUME $DATA_DIR/config.ini
 
-ENTRYPOINT ["/tmp/entrypoints/main.sh"]
+ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
 CMD ["mysqld"]
