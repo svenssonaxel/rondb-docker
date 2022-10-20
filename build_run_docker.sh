@@ -168,7 +168,7 @@ BIND_MY_CNF_TEMPLATE="
         target: /srv/hops/mysql-cluster/mysqld/my.cnf"
 
 COMMAND_TEMPLATE="
-      command: [ \"%s\" ]"
+      command: [ %s ]"
 
 #######################
 #######################
@@ -182,16 +182,17 @@ BASE_DOCKER_COMPOSE_FILE="version: '3.7'
 
 services:"
 
-for i in $(seq $NUM_MGM_NODES); do
+for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
+    NODE_ID=$((65 + $(($CONTAINER_NUM - 1)) ))
+
     template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
-    SERVICE_NAME="mgm_$i"
+    SERVICE_NAME="mgm_$CONTAINER_NUM"
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     template+="$BIND_CONFIG_INI_TEMPLATE"
-    command=$(printf "$COMMAND_TEMPLATE" "ndb_mgmd")
+    command=$(printf "$COMMAND_TEMPLATE" "\"ndb_mgmd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\"")
     template+="$command"
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
-    NODE_ID=$((65 + $(($CONTAINER_NUM - 1)) ))
     # NodeId, HostName, PortNumber, NodeActive, ArbitrationRank
     SLOT=$(printf "$CONFIG_INI_MGMD_TEMPLATE" "$NODE_ID" "$SERVICE_NAME" "1186" "1" "0")
     CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
@@ -202,14 +203,15 @@ done
 # We're not bothering with inactive ndbds here
 NUM_NODE_GROUPS=$(($NUM_DATA_NODES / $REPLICATION_FACTOR))
 for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
+    NODE_ID=$((1 + $(($CONTAINER_NUM - 1)) ))
+
     template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
     SERVICE_NAME="ndbd_$CONTAINER_NUM"
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
-    command=$(printf "$COMMAND_TEMPLATE" "ndbmtd")
+    command=$(printf "$COMMAND_TEMPLATE" "\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\"")
     template+="$command"
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
-    NODE_ID=$((1 + $(($CONTAINER_NUM - 1)) ))
     NODE_GROUP=$(($CONTAINER_NUM % $NUM_NODE_GROUPS))
     # NodeId, NodeGroup, NodeActive, HostName, ServerPort, FileSystemPath (NodeId)
     SLOT=$(printf "$CONFIG_INI_NDBD_TEMPLATE" "$NODE_ID" "$NODE_GROUP" "1" "$SERVICE_NAME" "11860" "$NODE_ID")
@@ -222,7 +224,7 @@ for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
     SERVICE_NAME="mysql_$CONTAINER_NUM"
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     template+="$BIND_MY_CNF_TEMPLATE"
-    command=$(printf "$COMMAND_TEMPLATE" "mysqld")
+    command=$(printf "$COMMAND_TEMPLATE" "\"mysqld\"")
     template+="$command"
     BASE_DOCKER_COMPOSE_FILE+="$template"
     
