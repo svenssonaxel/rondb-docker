@@ -208,7 +208,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
     SERVICE_NAME="ndbd_$CONTAINER_NUM"
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
-    command=$(printf "$COMMAND_TEMPLATE" "\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\"")
+    command=$(printf "$COMMAND_TEMPLATE" "\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\", \"--ndb-connectstring=$MGM_CONNECTION_STRING\"")
     template+="$command"
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
