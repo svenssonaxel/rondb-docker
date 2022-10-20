@@ -56,6 +56,7 @@ COPY ./resources/rondb_scripts $SCRIPTS_DIR
 RUN touch $MYSQL_UNIX_PORT
 
 RUN groupadd mysql && adduser mysql --ingroup mysql
+RUN chown mysql:mysql -R .
 
 # RUN chmod -R 755 /var/lib/mysql
 
@@ -64,6 +65,7 @@ RUN groupadd mysql && adduser mysql --ingroup mysql
 COPY ./resources/entrypoints ./docker_entrypoints/rondb_standalone
 RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
+USER mysql:mysql
 
 ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
