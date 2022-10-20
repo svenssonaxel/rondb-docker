@@ -1,5 +1,8 @@
 
 ```bash
+# Build and run image in docker-compose
+./build_run_docker.sh -v 21.04.6 -p linux/arm64 -g 2.31 -m 1 -d 2 -s 1 -r 2
+
 # Build image:
 docker buildx build . --platform=linux/arm64 -t rondb:21.04.6
 
