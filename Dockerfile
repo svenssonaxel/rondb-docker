@@ -17,6 +17,27 @@ RUN echo "TARGETARCH: $TARGETARCH; TARGETVARIANT: $TARGETVARIANT"
 RUN apt-get update -y \
     && apt-get install -y wget tar gzip
 
+# we need libssl.so.1.1 & libcrypto.so.1.1 for our binaries;
+#   /usr/lib/aarch64-linux-gnu only contains libssl.so,
+#   which is from openssl-3.x;
+#   to get these libraries, we need to download openssl-1.1.1m;
+#   we don't need openssl-1.1.1m itself, only its shared libraries;
+#   commands are from https://linuxpip.org/install-openssl-linux/
+ENV DOWNLOADED_OPENSSL_PATH=/usr/local/ssl
+RUN apt-get update -y \
+    && apt-get install -y build-essential checkinstall zlib1g-dev \
+    && cd /usr/local/src/ \
+    && wget https://www.openssl.org/source/openssl-1.1.1m.tar.gz \
+    && tar -xf openssl-1.1.1m.tar.gz \
+    && cd openssl-1.1.1m \
+    && ./config --prefix=$DOWNLOADED_OPENSSL_PATH --openssldir=$DOWNLOADED_OPENSSL_PATH shared zlib \
+    && make \
+    && make install 
+    # Could also run `make test`
+    # `make install` places shared libraries into $DOWNLOADED_OPENSSL_PATH
+
+ENV LD_LIBRARY_PATH=$DOWNLOADED_OPENSSL_PATH/lib/:$LD_LIBRARY_PATH
+
 # Copying Hopsworks cloud environment
 ENV HOPSWORK_DIR=/srv/hops
 WORKDIR $HOPSWORK_DIR
@@ -31,22 +52,7 @@ RUN ln -s $RONDB_BIN_DIR $RONDB_BIN_DIR_SYMLINK
 
 ENV PATH=$RONDB_BIN_DIR_SYMLINK/bin:$PATH
 
-# we need libssl.so.1.1 & libcrypto.so.1.1 for our binaries
-#   /usr/lib/aarch64-linux-gnu only contains libssl.so; 
-#   we don't need openssl-1.1.1m itself, only its shared libraries
-#   commands are from https://linuxpip.org/install-openssl-linux/
-RUN apt-get install -y build-essential checkinstall zlib1g-dev \
-    && cd /usr/local/src/ \
-    && wget https://www.openssl.org/source/openssl-1.1.1m.tar.gz \
-    && tar -xf openssl-1.1.1m.tar.gz \
-    && cd openssl-1.1.1m \
-    && ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib \
-    && make \
-    && make install 
-    # Could also run `make test`
-    # `make install` places shared libraries into /usr/local/ssl
-
-ENV LD_LIBRARY_PATH=$RONDB_BIN_DIR_SYMLINK/lib:/usr/local/ssl/lib/:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$RONDB_BIN_DIR_SYMLINK/lib:$LD_LIBRARY_PATH
 RUN ldconfig --verbose
 
 ENV RONDB_DATA_DIR=$HOPSWORK_DIR/mysql-cluster
