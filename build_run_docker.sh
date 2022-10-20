@@ -243,7 +243,7 @@ echo "Writing data to files"
 
 if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
     echo "Writing my.cnf"
-    MY_CNF=$(printf "$MY_CNF_TEMPLATE" "$MGM_CONNECTION_STRING")
+    MY_CNF=$(printf "$MY_CNF_TEMPLATE" "$SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING")
     echo "$MY_CNF" >$MY_CNF_FILEPATH
 fi
 
