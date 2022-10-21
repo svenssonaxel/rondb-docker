@@ -11,15 +11,15 @@ set -e
 function print_usage() {
     cat <<EOF
 Usage:
-  $0    [-v RONDB_VERSION]
-        [-p BUILD_PLATFORM]
-        [-g GLIBC_VERSION]
-        [-m NUM_MGM_NODES]
-        [-d NUM_DATA_NODES]
-        [-s NUM_MYSQL_NODES]
-        [-a NUM_API_NODES]
-        [-r REPLICATION_FACTOR]
-        [--detached]
+  $0    [-v     --rondb-version]
+        [-p     --platform]
+        [-g     --glibc-version]
+        [-m     --num-mgm-nodes]
+        [-d     --num-data-nodes]
+        [-r     --replication-factor]
+        [-my    --num-mysql-nodes]
+        [-a     --num-api-nodes]
+        [-det   --detached]
 EOF
 }
 
@@ -56,33 +56,33 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    -m | --num_mgm_nodes)
+    -m | --num-mgm-nodes)
         NUM_MGM_NODES="$2"
         shift # past argument
         shift # past value
         ;;
-    -d | --num_data_nodes)
+    -d | --num-data-nodes)
         NUM_DATA_NODES="$2"
         shift # past argument
         shift # past value
         ;;
-    -s | --num_mysql_nodes)
-        NUM_MYSQL_NODES="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    -a | --num_api_nodes)
-        NUM_API_NODES="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    -r | --replication_factor)
+    -r | --replication-factor)
         REPLICATION_FACTOR="$2"
         shift # past argument
         shift # past value
         ;;
+    -my | --num-mysql-nodes)
+        NUM_MYSQL_NODES="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    -a | --num-api-nodes)
+        NUM_API_NODES="$2"
+        shift # past argument
+        shift # past value
+        ;;
 
-    -dct | --detached)
+    -det | --detached)
         DOCKER_COMPOSE_DETACHED="-d"
         shift # past argument
         ;;
@@ -101,9 +101,9 @@ echo "Glibc version                             = ${GLIBC_VERSION}"
 echo "Build platform                            = ${BUILD_PLATFORM}"
 echo "Number of management nodes                = ${NUM_MGM_NODES}"
 echo "Number of data nodes                      = ${NUM_DATA_NODES}"
+echo "Replication factor                        = ${REPLICATION_FACTOR}"
 echo "Number of mysql nodes                     = ${NUM_MYSQL_NODES}"
 echo "Number of api nodes                       = ${NUM_API_NODES}"
-echo "Replication factor                        = ${REPLICATION_FACTOR}"
 echo "Running docker-compose in detached mode   = ${DOCKER_COMPOSE_DETACHED}"
 
 if [[ -n $1 ]]; then
