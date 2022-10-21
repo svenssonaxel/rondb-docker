@@ -193,7 +193,8 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
     template+="$command"
     template+="$VOLUMES_FIELD"
     template+="$BIND_CONFIG_INI_TEMPLATE"
-    VOLUME_NAME="vol_$SERVICE_NAME"
+
+    VOLUME_NAME="dataDir_$SERVICE_NAME"
     volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mgmd")
     template+="$volume"
     VOLUMES+=("$VOLUME_NAME")
@@ -218,8 +219,14 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     command=$(printf "$COMMAND_TEMPLATE" "\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\", \"--ndb-connectstring=$MGM_CONNECTION_STRING\"")
     template+="$command"
     template+="$VOLUMES_FIELD"
-    VOLUME_NAME="vol_$SERVICE_NAME"
+
+    VOLUME_NAME="dataDir_$SERVICE_NAME"
     volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "ndbd")
+    template+="$volume"
+    VOLUMES+=("$VOLUME_NAME")
+
+    VOLUME_NAME="logDir_$SERVICE_NAME"
+    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "log")
     template+="$volume"
     VOLUMES+=("$VOLUME_NAME")
 
@@ -240,7 +247,8 @@ for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
     template+="$command"
     template+="$VOLUMES_FIELD"
     template+="$BIND_MY_CNF_TEMPLATE"
-    VOLUME_NAME="vol_$SERVICE_NAME"
+
+    VOLUME_NAME="dataDir_$SERVICE_NAME"
     volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysqld")
     template+="$volume"
     VOLUMES+=("$VOLUME_NAME")
