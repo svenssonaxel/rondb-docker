@@ -180,7 +180,7 @@ echo "Filling out templates"
 CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" "$REPLICATION_FACTOR")
 MGM_CONNECTION_STRING=''
 VOLUMES=()
-BASE_DOCKER_COMPOSE_FILE="version: '3.7'
+BASE_DOCKER_COMPOSE_FILE="version: '3.8'
 
 services:"
 
@@ -192,6 +192,18 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     command=$(printf "$COMMAND_TEMPLATE" "\"ndb_mgmd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\"")
     template+="$command"
+
+    # mgmds require very little resources
+    template+="
+      deploy:
+        resources:
+          limits:
+            cpus: '0.2'
+            memory: 50M
+          reservations:
+            cpus: '0.1'
+            memory: 20M"
+
     template+="$VOLUMES_FIELD"
     template+="$BIND_CONFIG_INI_TEMPLATE"
 
@@ -224,6 +236,19 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     command=$(printf "$COMMAND_TEMPLATE" "\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\", \"--ndb-connectstring=$MGM_CONNECTION_STRING\"")
     template+="$command"
+
+    # Make sure these memory boundaries are allowed in Docker settings!
+    # To check whether they are being used use `docker stats`
+    template+="
+      deploy:
+        resources:
+          limits:
+            cpus: '1'
+            memory: 3500M
+          reservations:
+            cpus: '1'
+            memory: 3100M"
+
     template+="$VOLUMES_FIELD"
 
     VOLUME_NAME="dataDir_$SERVICE_NAME"
@@ -251,6 +276,7 @@ for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     command=$(printf "$COMMAND_TEMPLATE" "\"mysqld\"")
     template+="$command"
+    
     template+="$VOLUMES_FIELD"
     template+="$BIND_MY_CNF_TEMPLATE"
 
