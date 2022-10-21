@@ -164,6 +164,7 @@ BIND_MY_CNF_TEMPLATE="
         source: $MY_CNF_FILEPATH
         target: /srv/hops/mysql-cluster/my.cnf"
 
+# We add volumes to the data dir for debugging purposes
 VOLUME_DATA_DIR_TEMPLATE="
       - %s:/srv/hops/mysql-cluster/%s"
 
@@ -294,4 +295,5 @@ echo "$CONFIG_INI" >$CONFIG_INI_FILEPATH
 
 # Remove previous volumes
 docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v
+# Run fresh setup
 docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up $DOCKER_COMPOSE_DETACHED
