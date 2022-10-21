@@ -200,6 +200,11 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
     template+="$volume"
     VOLUMES+=("$VOLUME_NAME")
 
+    VOLUME_NAME="logDir_$SERVICE_NAME"
+    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "log")
+    template+="$volume"
+    VOLUMES+=("$VOLUME_NAME")
+
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
     # NodeId, HostName, PortNumber, NodeActive, ArbitrationRank
@@ -222,7 +227,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     template+="$VOLUMES_FIELD"
 
     VOLUME_NAME="dataDir_$SERVICE_NAME"
-    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "ndbd")
+    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "ndb_data")
     template+="$volume"
     VOLUMES+=("$VOLUME_NAME")
 
