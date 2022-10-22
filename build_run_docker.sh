@@ -220,7 +220,7 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
     # NodeId, HostName, PortNumber, NodeActive, ArbitrationRank
-    SLOT=$(printf "$CONFIG_INI_MGMD_TEMPLATE" "$NODE_ID" "$SERVICE_NAME" "1186" "1" "0")
+    SLOT=$(printf "$CONFIG_INI_MGMD_TEMPLATE" "$NODE_ID" "$SERVICE_NAME" "1186" "1" "2")
     CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
 
     MGM_CONNECTION_STRING+="$SERVICE_NAME:1186,"
