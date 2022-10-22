@@ -25,16 +25,6 @@ if [ "${1:0:1}" = '-' ]; then
 	set -- mysqld "$@"
 fi
 
-# Check if entrypoint (and the container) is running as root
-if [ $(id -u) = "0" ]; then
-	is_root=1
-	install_devnull="install /dev/null -m0600 -omysql -gmysql"
-	MYSQLD_USER=mysql
-else
-	install_devnull="install /dev/null -m0600"
-	MYSQLD_USER=$(id -u)
-fi
-
 # https://stackoverflow.com/a/246128/9068781
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 

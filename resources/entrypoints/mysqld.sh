@@ -17,6 +17,18 @@ _mkpw() {
 	echo $letter$number$special | fold -w 1 | shuf | tr -d '\n'
 }
 
+# Check if entrypoint (and the container) is running as root
+if [ $(id -u) = "0" ]; then
+	is_root=1
+	install_devnull="install /dev/null -m0600 -omysql -gmysql"
+	MYSQLD_USER=mysql
+else
+	install_devnull="install /dev/null -m0600"
+	MYSQLD_USER=$(id -u)
+fi
+
+echo "MYSQLD_USER: $MYSQLD_USER"
+
 # Test that the server can start. We redirect stdout to /dev/null so
 # only the error messages are left.
 result=0
