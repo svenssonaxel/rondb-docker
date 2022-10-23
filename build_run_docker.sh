@@ -119,7 +119,7 @@ elif [ $NUM_DATA_NODES -lt 1 ]; then
 fi
 
 MOD_NDBDS=$(($NUM_DATA_NODES % $REPLICATION_FACTOR))
-if [ $MOD_NDBDS -neq 0 ]; then
+if [ $MOD_NDBDS -ne 0 ]; then
     echo "The number of data nodes needs to be a multiple of the replication factor"
     exit 1
 fi
