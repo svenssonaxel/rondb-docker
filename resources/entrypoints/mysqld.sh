@@ -127,10 +127,9 @@ else
     GRANT PROXY ON ''@'' TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;"
 fi
 
-echo "[Entrypoint] Deleting unknown users; altering the root user; creating a healthchecker user"
+echo "[Entrypoint] Deleting unknown users; altering the root user"
 "${mysql[@]}" <<-EOSQL
     DELETE FROM mysql.user WHERE user NOT IN ('mysql.infoschema', 'mysql.session', 'mysql.sys', 'root') OR host NOT IN ('localhost');
-    CREATE USER 'healthchecker'@'localhost' IDENTIFIED BY 'healthcheckpass';
     ${ALTER_ROOT_USER}
     FLUSH PRIVILEGES ;
 EOSQL
