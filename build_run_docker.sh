@@ -172,6 +172,13 @@ RONDB_DOCKER_COMPOSE_TEMPLATE="
 VOLUMES_FIELD="
       volumes:"
 
+ENV_FIELD="
+      environment:"
+
+# We add volumes to the data dir for debugging purposes
+ENV_VAR_TEMPLATE="
+      - %s=%s"
+
 # Bind config.ini to mgmd containers
 BIND_CONFIG_INI_TEMPLATE="
       - type: bind
@@ -256,6 +263,8 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
     command=$(printf "$COMMAND_TEMPLATE" "\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\", \"--ndb-connectstring=$MGM_CONNECTION_STRING\"")
     template+="$command"
+    # template+="
+    #   restart: always"
 
     # Make sure these memory boundaries are allowed in Docker settings!
     # To check whether they are being used use `docker stats`
@@ -289,6 +298,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
 done
 
+# TODO: Add env variable so that only one mysqld container runs the initialisation
 SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_MYSQL_NODES -gt 0 ]; then
     for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
@@ -311,6 +321,16 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysql-files")
         template+="$volume"
         VOLUMES+=("$VOLUME_NAME")
+
+        # Can add the following env vars to the mysqld containers:
+        # MYSQL_ROOT_PASSWORD
+        # MYSQL_DATABASE
+        # MYSQL_USER
+        # MYSQL_PASSWORD
+
+        template+="$ENV_FIELD"
+        env_var=$(printf "$ENV_VAR_TEMPLATE" "MYSQL_ALLOW_EMPTY_PASSWORD" "true")
+        template+="$env_var"
 
         BASE_DOCKER_COMPOSE_FILE+="$template"
 
