@@ -172,46 +172,32 @@ done
 # server is actually down.
 echo '[Entrypoint] Shutting down MySQLd via mysqladmin...'
 mysqladmin --defaults-extra-file="$PASSFILE" shutdown -uroot --socket="$SOCKET"
+echo "[Entrypoint] Successfully shut down MySQLd"
+
+echo "[Entrypoint] Removing PASSFILE '$PASSFILE'"
 rm -f "$PASSFILE"
 unset PASSFILE
-echo "[Entrypoint] Successfully shut down MySQLd"
 
 # This needs to be done outside the normal init, since mysqladmin shutdown will not work after
 if [ ! -z "$MYSQL_ONETIME_PASSWORD" ]; then
-    if [ -z %%EXPIRE_SUPPORT%% ]; then
-        echo "[Entrypoint] User expiration is only supported in MySQL 5.6+"
-    else
-        echo "[Entrypoint] Setting root user as expired. Password will need to be changed before database can be used."
-        SQL=$(mktemp -u $MYSQL_FILES_DIR/XXXXXXXXXX)
-        $install_devnull "$SQL"
-        if [ ! -z "$MYSQL_ROOT_HOST" ]; then
-            cat << EOF > "$SQL"
+    echo "[Entrypoint] Setting root user as expired. Password will need to be changed before database can be used."
+    SQL=$(mktemp -u $MYSQL_FILES_DIR/XXXXXXXXXX)
+    $install_devnull "$SQL"
+    if [ ! -z "$MYSQL_ROOT_HOST" ]; then
+        cat << EOF > "$SQL"
 ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE;
 ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
 EOF
-        else
-            cat << EOF > "$SQL"
+    else
+        cat << EOF > "$SQL"
 ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
 EOF
-        fi
-        set -- "$@" --init-file="$SQL"
-        unset SQL
     fi
+    set -- "$@" --init-file="$SQL"
+    unset SQL
 fi
 
 echo '[Entrypoint] MySQL init process done. Ready for start up.'
-
-# Used by healthcheck to make sure it doesn't mistakenly report container
-# healthy during startup
-# Put the password into the temporary config file
-touch $MYSQL_FILES_DIR/healthcheck.cnf
-cat >"$MYSQL_FILES_DIR/healthcheck.cnf" <<EOF
-[client]
-user=healthchecker
-socket=${SOCKET}
-password=healthcheckpass
-EOF
-touch $MYSQL_FILES_DIR/mysql-init-complete
 
 if [ -n "$MYSQL_INITIALIZE_ONLY" ]; then
     echo "[Entrypoint] MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
