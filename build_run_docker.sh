@@ -293,7 +293,7 @@ SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_MYSQL_NODES -gt 0 ]; then
     for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
         template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
-        SERVICE_NAME="mysql_$CONTAINER_NUM"
+        SERVICE_NAME="mysqld_$CONTAINER_NUM"
         template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
         command=$(printf "$COMMAND_TEMPLATE" "\"mysqld\"")
         template+="$command"
@@ -303,6 +303,12 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
 
         VOLUME_NAME="dataDir_$SERVICE_NAME"
         volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysqld")
+        template+="$volume"
+        VOLUMES+=("$VOLUME_NAME")
+
+        # This is for debugging
+        VOLUME_NAME="mysqlFilesDir_$SERVICE_NAME"
+        volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysql-files")
         template+="$volume"
         VOLUMES+=("$VOLUME_NAME")
 
