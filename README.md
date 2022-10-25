@@ -29,6 +29,18 @@ docker buildx build . --platform=linux/arm64 -t rondb:21.04.6 \
 docker run --rm -it --entrypoint=/bin/bash rondb:21.04.6
 ```
 
+Exemplatory commands to run with running docker-compose cluster:
+```bash
+# Open shell inside a running container
+docker exec -it <container-id> /bin/bash
+
+# If inside mgmd container; check the live cluster configuration:
+ndb_mgm -e show
+
+# If inside mysqld container; open mysql client:
+mysql -uroot
+```
+
 ## Goals of this repository
 
 1. Create an image with RonDB installed hopsworks/rondb:21.04.9 (x.y.z)
