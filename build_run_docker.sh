@@ -267,14 +267,16 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
 
     # Make sure these memory boundaries are allowed in Docker settings!
     # To check whether they are being used use `docker stats`
+    # We need this amount of memory during start; after it is done, only
+    # around 2500M are used.
     template+="
       deploy:
         resources:
           limits:
-            cpus: '1'
-            memory: 3500M
+            cpus: '2'
+            memory: 7000M
           reservations:
-            memory: 3100M"
+            memory: 7000M"
 
     template+="$VOLUMES_FIELD"
 
