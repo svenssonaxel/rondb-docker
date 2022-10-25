@@ -228,7 +228,6 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
             cpus: '0.2'
             memory: 50M
           reservations:
-            cpus: '0.1'
             memory: 20M"
 
     template+="$VOLUMES_FIELD"
@@ -275,7 +274,6 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
             cpus: '1'
             memory: 3500M
           reservations:
-            cpus: '1'
             memory: 3100M"
 
     template+="$VOLUMES_FIELD"
@@ -307,6 +305,17 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
         command=$(printf "$COMMAND_TEMPLATE" "\"mysqld\"")
         template+="$command"
+
+        # Make sure these memory boundaries are allowed in Docker settings!
+        # To check whether they are being used use `docker stats`
+        template+="
+      deploy:
+        resources:
+          limits:
+            cpus: '2'
+            memory: 1400M
+          reservations:
+            memory: 650M"
 
         template+="$VOLUMES_FIELD"
         template+="$BIND_MY_CNF_TEMPLATE"
