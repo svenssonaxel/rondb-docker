@@ -13,6 +13,7 @@ Dependencies:
 
 Important:
 - The ndbds require a considerable amount of memory; currently it is set as 7GB per data node. To make sure that this amount is actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781).
+- The same can apply to disk space - Docker also defines a maximum storage that all containers can use in the settings. It could however also be that a previous RonDB cluster run (or entirely different Docker containers) are still occupying disk space. In this case, run `docker container prune` and `docker volume prune`.
 - The Docker image downloads the RonDB tarballs from [repo.hops.works](repo.hops.works). These builds specify both the CPU architecture and the **glibc version**, which is why both the script `./build_run_docker.sh` and the Dockerfile require the glibc version as an argument. Simply look at [repo.hops.works](repo.hops.works) to see which RonDB version was built with which glibc version for which CPU architecture.
 
 Commands to run:
@@ -31,6 +32,9 @@ docker run --rm -it --entrypoint=/bin/bash rondb:21.04.6
 
 Exemplatory commands to run with running docker-compose cluster:
 ```bash
+# Check current ongoing memory consumption of running cluster
+docker stats
+
 # Open shell inside a running container
 docker exec -it <container-id> /bin/bash
 
@@ -69,6 +73,7 @@ mysql -uroot
 
 ## TODO
 
+- Add API nodes
 - Add dynamic Docker memory allocation; the more ndbds we have, the more memory each ndbd container requires
 - Avoid running everything twice with 2 mysqlds
 - Are env files even needed in this image?
