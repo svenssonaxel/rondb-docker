@@ -90,6 +90,8 @@ fi
 
 echo '[Entrypoint] Initializing database...'
 
+# Technically, specifying the user here is unnecessary since that is
+# the default user according to the Dockerfile
 "$@" \
     --log-error-verbosity=3 \
     --user=$MYSQLD_USER  \
@@ -221,4 +223,4 @@ else
     echo "[Entrypoint] Starting RonDB"
 fi
 echo "[Entrypoint] \$@: $@"
-export MYSQLD_PARENT_PID=$$ ; exec "$@" --user=
+export MYSQLD_PARENT_PID=$$ ; exec "$@"
