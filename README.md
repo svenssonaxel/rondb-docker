@@ -69,6 +69,7 @@ mysql -uroot
 
 ## TODO
 
+- Add dynamic Docker memory allocation; the more ndbds we have, the more memory each ndbd container requires
 - Avoid running everything twice with 2 mysqlds
 - Are env files even needed in this image?
   - Add ndb-cluster-connection-pool-nodeids as env to Dockerfile
