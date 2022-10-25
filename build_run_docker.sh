@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ## This file does the following
-## i. Builds Docker image of ndb-agent & Flask server
-## i. Generates event topology file for the Flask server (with given configuration)
-## i. Creates docker-compose file (with given configuration)
+## i. Builds the Docker image of RonDB
+## i. Generates a config.ini & my.cnf file
+## i. Creates docker-compose file
 ## i. Runs docker-compose
 
 set -e
