@@ -110,8 +110,8 @@ fi
 if [ $NUM_MGM_NODES -lt 1 ]; then
     echo "At least 1 mgmd is required"
     exit 1
-elif [ $REPLICATION_FACTOR -lt 1 ]; then
-    echo "The replication factor has to be at least 1"
+elif [ $REPLICATION_FACTOR -lt 1 -o $REPLICATION_FACTOR -gt 4]; then
+    echo "The replication factor has to be >=1 and <5; It is currently $REPLICATION_FACTOR"
     exit 1
 elif [ $NUM_DATA_NODES -lt 1 ]; then
     echo "At least 1 ndbd is required"
@@ -265,10 +265,12 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     # template+="
     #   restart: always"
 
-    # Make sure these memory boundaries are allowed in Docker settings!
-    # To check whether they are being used use `docker stats`
-    # We need this amount of memory during start; after it is done, only
-    # around 2500M are used.
+    # - Make sure the aggregate amount of memory **reservations** is
+    #   allowed in the Docker settings! Otherwise the ndbds are likely to be
+    #   killed by OOM (commonly disguised by signal 9)
+    # - To check whether they are being used use `docker stats` on a running cluster
+    # - Without data, around 2.5-3GiB are used after initialisation
+    # - "M" stands for MBytes
     template+="
       deploy:
         resources:
@@ -276,7 +278,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
             cpus: '2'
             memory: 7000M
           reservations:
-            memory: 7000M"
+            memory: 4000M"
 
     template+="$VOLUMES_FIELD"
 
