@@ -12,7 +12,7 @@ Dependencies:
 - Docker, docker-compose, Docker Buildx
 
 Important:
-- The ndbds require a considerable amount of memory; currently it is set as 7GB per data node. To make sure that this amount is actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781).
+- The ndbds require a considerable amount of memory; currently the reserved memory is set to 4GB and the memory limit is set as 7GB per ndbd. To make sure that this amount is actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781). It should add up to the reserved aggregate amount of memory required by all Docker containers.
 - The same can apply to disk space - Docker also defines a maximum storage that all containers can use in the settings. It could however also be that a previous RonDB cluster run (or entirely different Docker containers) are still occupying disk space. In this case, run `docker container prune` and `docker volume prune`.
 - The Docker image downloads the RonDB tarballs from [repo.hops.works](repo.hops.works). These builds specify both the CPU architecture and the **glibc version**, which is why both the script `./build_run_docker.sh` and the Dockerfile require the glibc version as an argument. Simply look at [repo.hops.works](repo.hops.works) to see which RonDB version was built with which glibc version for which CPU architecture.
 
