@@ -323,7 +323,7 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         template+="$BIND_MY_CNF_TEMPLATE"
 
         VOLUME_NAME="dataDir_$SERVICE_NAME"
-        volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysqld")
+        volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysql")
         template+="$volume"
         VOLUMES+=("$VOLUME_NAME")
 

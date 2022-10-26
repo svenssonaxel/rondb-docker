@@ -57,9 +57,7 @@ RUN ldconfig --verbose
 
 ENV RONDB_DATA_DIR=$HOPSWORK_DIR/mysql-cluster
 ENV MGMD_DATA_DIR=$RONDB_DATA_DIR/mgmd
-# TODO: Check whether Hopsworks names this mysql or mysqld
-#   In my.cnf it is references unded mysqld/datadir
-ENV MYSQLD_DATA_DIR=$RONDB_DATA_DIR/mysqld
+ENV MYSQLD_DATA_DIR=$RONDB_DATA_DIR/mysql
 ENV NDBD_DATA_DIR=$RONDB_DATA_DIR/ndb_data
 
 RUN mkdir -p $MGMD_DATA_DIR
