@@ -204,6 +204,7 @@ COMMAND_TEMPLATE="
 
 echo "Filling out templates"
 
+source $SCRIPT_DIR/docker.env
 CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" "$REPLICATION_FACTOR")
 MGM_CONNECTION_STRING=''
 VOLUMES=()
@@ -220,15 +221,14 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
     command=$(printf "$COMMAND_TEMPLATE" "\"ndb_mgmd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\"")
     template+="$command"
 
-    # mgmds require very little resources
     template+="
       deploy:
         resources:
           limits:
-            cpus: '0.2'
-            memory: 50M
+            cpus: '$MGMD_CPU_LIMIT'
+            memory: $MGMD_MEMORY_LIMIT
           reservations:
-            memory: 20M"
+            memory: $MGMD_MEMORY_RESERVATION"
 
     template+="$VOLUMES_FIELD"
     template+="$BIND_CONFIG_INI_TEMPLATE"
@@ -265,20 +265,14 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     # template+="
     #   restart: always"
 
-    # - Make sure the aggregate amount of memory **reservations** is
-    #   allowed in the Docker settings! Otherwise the ndbds are likely to be
-    #   killed by OOM (commonly disguised by signal 9)
-    # - To check whether they are being used use `docker stats` on a running cluster
-    # - Without data, around 2.5-3GiB are used after initialisation
-    # - "M" stands for MBytes
     template+="
       deploy:
         resources:
           limits:
-            cpus: '2'
-            memory: 7000M
+            cpus: '$NDBD_CPU_LIMIT'
+            memory: $NDBD_MEMORY_LIMIT
           reservations:
-            memory: 4000M"
+            memory: $NDBD_MEMORY_RESERVATION"
 
     template+="$VOLUMES_FIELD"
 
@@ -316,10 +310,10 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
       deploy:
         resources:
           limits:
-            cpus: '2'
-            memory: 1400M
+            cpus: '$MYSQLD_CPU_LIMIT'
+            memory: $MYSQLD_MEMORY_LIMIT
           reservations:
-            memory: 650M"
+            memory: $MYSQLD_MEMORY_RESERVATION"
 
         template+="$VOLUMES_FIELD"
         template+="$BIND_MY_CNF_TEMPLATE"
