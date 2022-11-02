@@ -1,6 +1,14 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM ubuntu:latest
+# Explaining order of ARGS in Dockerfiles: https://stackoverflow.com/a/53683625/9068781
+
+ARG RONDB_TARBALL_LOCAL_REMOTE
+
+# Treat this as constant
+ARG DOWNLOADED_OPENSSL_PATH=/usr/local/ssl
+
+# Download all required Ubuntu dependencies
+FROM --platform=$TARGETPLATFORM ubuntu:latest as rondb_runtime_dependencies
 
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
@@ -8,8 +16,7 @@ ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG TARGETVARIANT
 
-ARG RONDB_VERSION=21.04.6
-ARG GLIBC_VERSION=2.31
+ARG DOWNLOADED_OPENSSL_PATH
 
 RUN echo "Running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 RUN echo "TARGETARCH: $TARGETARCH; TARGETVARIANT: $TARGETVARIANT"
@@ -25,7 +32,6 @@ RUN apt-get update -y \
 #   to get these libraries, we need to download openssl-1.1.1m;
 #   we don't need openssl-1.1.1m itself, only its shared libraries;
 #   commands are from https://linuxpip.org/install-openssl-linux/
-ENV DOWNLOADED_OPENSSL_PATH=/usr/local/ssl
 RUN apt-get update -y \
     && apt-get install -y build-essential checkinstall zlib1g-dev \
     && cd /usr/local/src/ \
@@ -38,15 +44,33 @@ RUN apt-get update -y \
     # Could also run `make test`
     # `make install` places shared libraries into $DOWNLOADED_OPENSSL_PATH
 
+# Get RonDB tarball from local path
+FROM rondb_runtime_dependencies as local_tarball
+ARG RONDB_TARBALL_URI
+COPY $RONDB_TARBALL_URI ./temp_tarball.tgz
+
+# Get RonDB tarball from remote url
+FROM rondb_runtime_dependencies as remote_tarball
+ARG RONDB_TARBALL_URI
+RUN wget $RONDB_TARBALL_URI -O ./temp_tarball.tgz
+
+FROM ${RONDB_TARBALL_LOCAL_REMOTE}_tarball
+ARG DOWNLOADED_OPENSSL_PATH
+
+ARG RONDB_VERSION=21.04.6
+
 ENV LD_LIBRARY_PATH=$DOWNLOADED_OPENSSL_PATH/lib/:$LD_LIBRARY_PATH
 
 # Copying Hopsworks cloud environment
 ENV HOPSWORK_DIR=/srv/hops
-WORKDIR $HOPSWORK_DIR
 ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
 
-# Downloading RonDB via mounted (read-only) file
-RUN --mount=type=bind,source=./download_rondb.sh,target=./down.sh ./down.sh -v $RONDB_VERSION -g $GLIBC_VERSION -t $TARGETARCH -o $RONDB_BIN_DIR
+# Processing tarballs from previous build stage
+RUN mkdir -p $RONDB_BIN_DIR
+RUN tar xfz ./temp_tarball.tgz -C $RONDB_BIN_DIR --strip-components=1
+RUN rm ./temp_tarball.tgz
+
+WORKDIR $HOPSWORK_DIR
 
 # We use symlinks in case we want to exchange binaries
 ENV RONDB_BIN_DIR_SYMLINK=$HOPSWORK_DIR/mysql

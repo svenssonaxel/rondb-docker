@@ -3,6 +3,7 @@
 This repository creates the possibility of:
 - building cross-platform RonDB images
 - running local (non-production) RonDB clusters with docker-compose
+- demo the usage of managed RonDB (upcoming)
 
 To learn more about RonDB, have a look [here](rondb.com).
 
@@ -12,22 +13,27 @@ Dependencies:
 - Docker, docker-compose, Docker Buildx
 
 Important:
-- Every container requires an amount of memory; to adjust the amount of resources that Docker allocates to each of the different containers, see the [docker.env](docker.env) file. To check the amount actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781). It should add up to the reserved aggregate amount of memory required by all Docker containers. As a reference, allocating around 27GB of memory in the Docker settings can support 1 mgmd, 2 mysqlds and 9 ndbds (3 node groups).
+- Every container requires an amount of memory; to adjust the amount of resources that Docker allocates to each of the different containers, see the [docker.env](docker.env) file. To check the amount actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781). It should add up to the reserved aggregate amount of memory required by all Docker containers. As a reference, allocating around 27GB of memory in the Docker settings can support 1 mgmd, 2 mysqlds and 9 ndbds (3 node groups x 3 replicas).
 - The same can apply to disk space - Docker also defines a maximum storage that all containers can use in the settings. It could however also be that a previous RonDB cluster run (or entirely different Docker containers) are still occupying disk space. In this case, run `docker container prune` and `docker volume prune`.
-- The Docker image downloads the RonDB tarballs from [repo.hops.works](repo.hops.works). These builds specify both the CPU architecture and the **glibc version**, which is why both the script `./build_run_docker.sh` and the Dockerfile require the glibc version as an argument. Simply look at [repo.hops.works](repo.hops.works) to see which RonDB version was built with which glibc version for which CPU architecture.
+- This repository requires a tarball of the RonDB installation to run. Pre-built binaries can be found on [repo.hops.works](https://repo.hops.works/master). Make sure the target platform of the Docker image and the used tarball are identical.
 
 Commands to run:
 ```bash
-# Build and run image in docker-compose (for local platform)
-./build_run_docker.sh -v 21.04.6 -g 2.31 -m 1 -d 2 -r 2 -my 1
+# Build and run image **for local platform** in docker-compose using local RonDB tarball (download it first!)
+# Beware that the local platform is linux/arm64 in this case
+./build_run_docker.sh \
+  --rondb-tarball-is-local \
+  -ruri ./rondb-21.04.6-linux-glibc2.31-arm64_v8.tar.gz \
+  -v 21.04.6 -m 1 -d 2 -r 2 -my 1
 
-# Build cross-platform image:
-docker buildx build . --platform=linux/arm64 -t rondb:21.04.6 \
-  --build-arg RONDB_VERSION=21.04.6
-  --build-arg GLIBC_VERSION=2.31
+# Build cross-platform image (linux/arm64 here)
+docker buildx build . --platform=linux/arm64 -t rondb-standalone:21.04.6 \
+  --build-arg RONDB_VERSION=21.04.6 \
+  --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \  # alternatively "local"
+  --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-21.04.6-linux-glibc2.31-arm64_v8.tar.gz # alternatively a local file path
 
-# Explore image:
-docker run --rm -it --entrypoint=/bin/bash rondb:21.04.6
+# Explore image
+docker run --rm -it --entrypoint=/bin/bash rondb-standalone:21.04.6
 ```
 
 Exemplatory commands to run with running docker-compose cluster:
@@ -56,7 +62,7 @@ When attempting to change any of the configurations inside my.cnf or config.ini,
 
 ## Goals of this repository
 
-1. Create an image with RonDB installed hopsworks/rondb:21.04.9 (x.y.z)
+1. Create an image with RonDB installed "hopsworks/rondb-standalone:21.04.9"
    - Purpose: basic local testing & building stone for other images
    - No building of RonDB itself
    - Supporting multiple CPU architectures
@@ -71,9 +77,10 @@ When attempting to change any of the configurations inside my.cnf or config.ini,
      - dynamic setup of docker-compose file
      - standalone entrypoints
 
-2. Use this image as base image in further private repositories e.g. ndb-agent
+2. Create an image with ndb-agent installed "hopsworks/rondb-managed:21.04.9-1.0"
+   - use "rondb-standalone" as base image
+   - use this for demos of how upgrades/scaling/backups of RonDB can be used in the cloud
    - use this for testing managed RonDB to avoid the necessity of a Hopsworks cluster
-   - add build-arg "with-rondb"
    - install other required software there such as systemctl
 
 3. Reference in ePipe as base image
@@ -83,6 +90,7 @@ When attempting to change any of the configurations inside my.cnf or config.ini,
 ## TODO
 
 - Add API nodes
+- Change to #node-groups x #replFactor
 - Avoid running everything twice with 2 mysqlds
 - Are env files even needed in this image?
   - Add ndb-cluster-connection-pool-nodeids as env to Dockerfile
