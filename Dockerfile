@@ -15,7 +15,9 @@ RUN echo "Running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 RUN echo "TARGETARCH: $TARGETARCH; TARGETVARIANT: $TARGETVARIANT"
 
 RUN apt-get update -y \
-    && apt-get install -y wget tar gzip
+    && apt-get install -y wget tar gzip \
+    libncurses5 libnuma-dev
+    # the last two libraries are required for x86 only
 
 # we need libssl.so.1.1 & libcrypto.so.1.1 for our binaries;
 #   /usr/lib/aarch64-linux-gnu only contains libssl.so,
