@@ -11,7 +11,8 @@ set -e
 function print_usage() {
     cat <<EOF
 Usage:
-  $0    [-v         --rondb-version             <string>]
+  $0    
+        [-v         --rondb-version             <string>]
         [-ruri      --rondb-tarball-uri         <string>]
         [-m         --num-mgm-nodes             <int>   ]
         [-d         --num-data-nodes            <int>   ]
@@ -81,7 +82,7 @@ while [[ $# -gt 0 ]]; do
         shift # past value
         ;;
 
-    -rtarL | --rondb-tarball-is-local)
+    -rtarl | --rondb-tarball-is-local)
         RONDB_TARBALL_LOCAL_REMOTE=local
         shift # past argument
         ;;
