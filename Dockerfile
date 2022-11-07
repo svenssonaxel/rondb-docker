@@ -39,7 +39,7 @@ RUN apt-get update -y \
     && tar -xf openssl-1.1.1m.tar.gz \
     && cd openssl-1.1.1m \
     && ./config --prefix=$DOWNLOADED_OPENSSL_PATH --openssldir=$DOWNLOADED_OPENSSL_PATH shared zlib \
-    && make \
+    && make -j$(nproc) \
     && make install
     # Could also run `make test`
     # `make install` places shared libraries into $DOWNLOADED_OPENSSL_PATH
