@@ -40,9 +40,12 @@ RUN apt-get update -y \
     && cd openssl-1.1.1m \
     && ./config --prefix=$DOWNLOADED_OPENSSL_PATH --openssldir=$DOWNLOADED_OPENSSL_PATH shared zlib \
     && make \
-    && make install 
+    && make install
     # Could also run `make test`
     # `make install` places shared libraries into $DOWNLOADED_OPENSSL_PATH
+
+ENV LD_LIBRARY_PATH=$DOWNLOADED_OPENSSL_PATH/lib/:$LD_LIBRARY_PATH
+RUN ldconfig --verbose
 
 # Get RonDB tarball from local path
 FROM rondb_runtime_dependencies as local_tarball
@@ -55,11 +58,8 @@ ARG RONDB_TARBALL_URI
 RUN wget $RONDB_TARBALL_URI -O ./temp_tarball.tgz
 
 FROM ${RONDB_TARBALL_LOCAL_REMOTE}_tarball
-ARG DOWNLOADED_OPENSSL_PATH
 
 ARG RONDB_VERSION=21.04.6
-
-ENV LD_LIBRARY_PATH=$DOWNLOADED_OPENSSL_PATH/lib/:$LD_LIBRARY_PATH
 
 # Copying Hopsworks cloud environment
 ENV HOPSWORK_DIR=/srv/hops
