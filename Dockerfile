@@ -5,7 +5,7 @@
 ARG RONDB_TARBALL_LOCAL_REMOTE
 
 # Download all required Ubuntu dependencies
-FROM --platform=$TARGETPLATFORM ubuntu:latest as rondb_runtime_dependencies
+FROM --platform=$TARGETPLATFORM ubuntu:22.04 as rondb_runtime_dependencies
 
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
