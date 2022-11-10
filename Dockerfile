@@ -4,9 +4,6 @@
 
 ARG RONDB_TARBALL_LOCAL_REMOTE
 
-# Treat this as constant
-ARG DOWNLOADED_OPENSSL_PATH=/usr/local/ssl
-
 # Download all required Ubuntu dependencies
 FROM --platform=$TARGETPLATFORM ubuntu:latest as rondb_runtime_dependencies
 
@@ -16,15 +13,21 @@ ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG TARGETVARIANT
 
-ARG DOWNLOADED_OPENSSL_PATH
+ARG OPEN_SSL_VERSION=1.1.1m
 
 RUN echo "Running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 RUN echo "TARGETARCH: $TARGETARCH; TARGETVARIANT: $TARGETVARIANT"
 
-RUN apt-get update -y \
+RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
+    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
+    apt-get update -y \
     && apt-get install -y wget tar gzip \
     libncurses5 libnuma-dev
     # the last two libraries are required for x86 only
+
+# Creating a cache dir for downloads to avoid redownloading
+ENV DOWNLOADS_CACHE_DIR=/tmp/downloads
+RUN mkdir $DOWNLOADS_CACHE_DIR
 
 # we need libssl.so.1.1 & libcrypto.so.1.1 for our binaries;
 #   /usr/lib/aarch64-linux-gnu only contains libssl.so,
@@ -32,19 +35,25 @@ RUN apt-get update -y \
 #   to get these libraries, we need to download openssl-1.1.1m;
 #   we don't need openssl-1.1.1m itself, only its shared libraries;
 #   commands are from https://linuxpip.org/install-openssl-linux/
-RUN apt-get update -y \
+ENV OPENSSL_ROOT=/usr/local/ssl
+RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
+    --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
+    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
+    apt-get update -y \
     && apt-get install -y build-essential checkinstall zlib1g-dev \
-    && cd /usr/local/src/ \
-    && wget https://www.openssl.org/source/openssl-1.1.1m.tar.gz \
-    && tar -xf openssl-1.1.1m.tar.gz \
-    && cd openssl-1.1.1m \
-    && ./config --prefix=$DOWNLOADED_OPENSSL_PATH --openssldir=$DOWNLOADED_OPENSSL_PATH shared zlib \
+    && wget -N --progress=bar:force -P $DOWNLOADS_CACHE_DIR \
+        https://www.openssl.org/source/openssl-$OPEN_SSL_VERSION.tar.gz \
+    && tar -xf $DOWNLOADS_CACHE_DIR/openssl-$OPEN_SSL_VERSION.tar.gz -C . \
+    && cd openssl-$OPEN_SSL_VERSION \
+    && ./config --prefix=$OPENSSL_ROOT --openssldir=$OPENSSL_ROOT shared zlib \
     && make -j$(nproc) \
-    && make install
+    && make install \
+    && cd .. \
+    && rm -r openssl-$OPEN_SSL_VERSION
     # Could also run `make test`
-    # `make install` places shared libraries into $DOWNLOADED_OPENSSL_PATH
+    # `make install` places shared libraries into $OPENSSL_ROOT
 
-ENV LD_LIBRARY_PATH=$DOWNLOADED_OPENSSL_PATH/lib/:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$OPENSSL_ROOT/lib/:$LD_LIBRARY_PATH
 RUN ldconfig --verbose
 
 # Get RonDB tarball from local path
