@@ -20,7 +20,6 @@ Usage:
         [-my        --num-mysql-nodes           <int>   ]
         [-a         --num-api-nodes             <int>   ]
         [-rtarl     --rondb-tarball-is-local            ]
-        [-det       --detached                          ]
 EOF
 }
 
@@ -86,10 +85,6 @@ while [[ $# -gt 0 ]]; do
         RONDB_TARBALL_LOCAL_REMOTE=local
         shift # past argument
         ;;
-    -det | --detached)
-        DOCKER_COMPOSE_DETACHED="-d"
-        shift # past argument
-        ;;
 
     *)                     # unknown option
         POSITIONAL+=("$1") # save it in an array for later
@@ -108,7 +103,6 @@ echo "Number of data nodes                      = ${NUM_DATA_NODES}"
 echo "Replication factor                        = ${REPLICATION_FACTOR}"
 echo "Number of mysql nodes                     = ${NUM_MYSQL_NODES}"
 echo "Number of api nodes                       = ${NUM_API_NODES}"
-echo "Running docker-compose in detached mode   = ${DOCKER_COMPOSE_DETACHED}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
@@ -394,4 +388,4 @@ echo "$CONFIG_INI" >$CONFIG_INI_FILEPATH
 # Remove previous volumes
 docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v
 # Run fresh setup
-docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up $DOCKER_COMPOSE_DETACHED
+docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up
