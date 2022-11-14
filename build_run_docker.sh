@@ -408,7 +408,7 @@ if [ $NUM_API_NODES -gt 0 ]; then
         template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
         SERVICE_NAME="api_$CONTAINER_NUM"
         template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
-        command=$(printf "$COMMAND_TEMPLATE" "bash -c \"sleep 60 && bench_run.sh --default-directory /home/mysql/benchmarks/sysbench_single\"")
+        command=$(printf "$COMMAND_TEMPLATE" "bash -c \"sleep 120 && bench_run.sh --default-directory /home/mysql/benchmarks/sysbench_single\"")
         template+="$command"
 
         # Make sure these memory boundaries are allowed in Docker settings!
