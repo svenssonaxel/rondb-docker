@@ -273,6 +273,9 @@ BIND_AUTOBENCH_DBT2_MULTI_TEMPLATE="
 VOLUME_DATA_DIR_TEMPLATE="
       - %s:/srv/hops/mysql-cluster/%s"
 
+VOLUME_BENCHMARKING_TEMPLATE="
+      - %s:/home/mysql/benchmarks/%s"
+
 COMMAND_TEMPLATE="
       command: %s"
 
@@ -469,14 +472,36 @@ if [ $NUM_API_NODES -gt 0 ]; then
           reservations:
             memory: $API_MEMORY_RESERVATION"
 
+        template+="$VOLUMES_FIELD"
         if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
-            template+="$VOLUMES_FIELD"
             template+="$BIND_AUTOBENCH_SYS_SINGLE_TEMPLATE"
             template+="$BIND_AUTOBENCH_DBT2_SINGLE_TEMPLATE"
             if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
                 template+="$BIND_AUTOBENCH_SYS_MULTI_TEMPLATE"
                 template+="$BIND_AUTOBENCH_DBT2_MULTI_TEMPLATE"
             fi
+        fi
+
+        if [ ! -z $RUN_BENCHMARK ]; then
+            VOLUME_NAME="sysbench_single_$SERVICE_NAME"
+            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "sysbench_single/sysbench_results")
+            template+="$volume"
+            VOLUMES+=("$VOLUME_NAME")
+
+            VOLUME_NAME="sysbench_multi_$SERVICE_NAME"
+            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "sysbench_multi/sysbench_results")
+            template+="$volume"
+            VOLUMES+=("$VOLUME_NAME")
+
+            VOLUME_NAME="dbt2_single_$SERVICE_NAME"
+            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "dbt2_single/dbt2_output")
+            template+="$volume"
+            VOLUMES+=("$VOLUME_NAME")
+
+            VOLUME_NAME="dbt2_multi_$SERVICE_NAME"
+            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "dbt2_multi/dbt2_output")
+            template+="$volume"
+            VOLUMES+=("$VOLUME_NAME")
         fi
 
         template+="$ENV_FIELD"
