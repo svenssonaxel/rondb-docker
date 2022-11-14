@@ -18,6 +18,8 @@ set -e
 
 echo "[Entrypoint] RonDB Docker Image"
 
+echo "\$@: $@"
+
 # If command starts with an option, prepend mysqld
 # This allows users to add command-line options without
 # needing to specify the "mysqld" command
