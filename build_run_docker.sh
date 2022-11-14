@@ -19,6 +19,9 @@ Usage:
         [-r         --replication-factor        <int>   ]
         [-my        --num-mysql-nodes           <int>   ]
         [-a         --num-api-nodes             <int>   ]
+        [-b         --run-benchmark             <string>
+                        Options: <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>
+                                                        ]
         [-rtarl     --rondb-tarball-is-local            ]
 EOF
 }
@@ -39,6 +42,7 @@ NUM_DATA_NODES=1
 NUM_MYSQL_NODES=0
 NUM_API_NODES=0
 REPLICATION_FACTOR=1
+RUN_BENCHMARK=
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -81,6 +85,12 @@ while [[ $# -gt 0 ]]; do
         shift # past value
         ;;
 
+    -b | --run-benchmark)
+        RUN_BENCHMARK="$2"
+        shift # past argument
+        shift # past value
+        ;;
+
     -rtarl | --rondb-tarball-is-local)
         RONDB_TARBALL_LOCAL_REMOTE=local
         shift # past argument
@@ -103,6 +113,7 @@ echo "Number of data nodes                      = ${NUM_DATA_NODES}"
 echo "Replication factor                        = ${REPLICATION_FACTOR}"
 echo "Number of mysql nodes                     = ${NUM_MYSQL_NODES}"
 echo "Number of api nodes                       = ${NUM_API_NODES}"
+echo "Run benchmark                             = ${RUN_BENCHMARK}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
@@ -127,6 +138,36 @@ MOD_NDBDS=$(($NUM_DATA_NODES % $REPLICATION_FACTOR))
 if [ $MOD_NDBDS -ne 0 ]; then
     echo "The number of data nodes needs to be a multiple of the replication factor"
     exit 1
+fi
+
+if [ ! -z $RUN_BENCHMARK ]; then
+    if [ "$RUN_BENCHMARK" != "sysbench_single" -a \
+        "$RUN_BENCHMARK" != "sysbench_multi" -a \
+        "$RUN_BENCHMARK" != "dbt2_single" -a \
+        "$RUN_BENCHMARK" != "dbt2_multi" ]; then
+        echo "Benchmark has to be one of <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>"
+        exit 1
+    elif [ $NUM_API_NODES -lt 1 ]; then
+        echo "At least one api is required to run benchmarks"
+        exit 1
+    elif [ $NUM_MYSQL_NODES -lt 1 ]; then
+        echo "At least one mysqld is required to run benchmarks"
+        exit 1
+    fi
+    
+    if [ "$RUN_BENCHMARK" == "sysbench_multi" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
+        if [ $NUM_MYSQL_NODES -lt 2 ]; then
+            echo "At least two mysqlds are required to run the multi-benchmarks"
+            exit 1
+        fi
+    fi
+
+    if [ "$RUN_BENCHMARK" == "dbt2_single" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
+        if [ $NUM_API_NODES -gt 1 ]; then
+            echo "Can only run dbt2 benchmarks with one api container"
+            exit 1
+        fi
+    fi
 fi
 
 FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_d${NUM_DATA_NODES}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
@@ -401,14 +442,20 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
     done
 fi
 
-# TODO: Make command to be run a flag in this script
 API_SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_API_NODES -gt 0 ]; then
     for CONTAINER_NUM in $(seq $NUM_API_NODES); do
         template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
         SERVICE_NAME="api_$CONTAINER_NUM"
         template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
-        command=$(printf "$COMMAND_TEMPLATE" "bash -c \"sleep 120 && bench_run.sh --default-directory /home/mysql/benchmarks/sysbench_single\"")
+
+        if [ -z $RUN_BENCHMARK ]; then
+            # Simply keep the API container running
+            command=$(printf "$COMMAND_TEMPLATE" "bash -c \"tail -F anything\"")
+        else
+            command=$(printf "$COMMAND_TEMPLATE" "bash -c \"sleep 120 && bench_run.sh --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
+        fi
+
         template+="$command"
 
         # Make sure these memory boundaries are allowed in Docker settings!
@@ -478,7 +525,7 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
 
         echo "Writing benchmarking files for single mysqlds"
 
-        AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD")
+        AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD" "$NUM_API_NODES")
         echo "$AUTOBENCH_SYSBENCH_SINGLE" >$AUTOBENCH_SYS_SINGLE_FILEPATH
 
         AUTOBENCH_DBT2_SINGLE=$(printf "$AUTOBENCH_DBT2_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD")
@@ -487,7 +534,7 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
         if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
             echo "Writing benchmarking files for multiple mysqlds"
 
-            AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD")
+            AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD" "$NUM_API_NODES")
             echo "$AUTOBENCH_SYSBENCH_MULTI" >$AUTOBENCH_SYS_MULTI_FILEPATH
 
             AUTOBENCH_DBT2_MULTI=$(printf "$AUTOBENCH_DBT2_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD")
