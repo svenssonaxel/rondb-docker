@@ -168,9 +168,14 @@ if [ "$MYSQL_DATABASE" ]; then
     mysql+=("$MYSQL_DATABASE")
 fi
 
+# TODO: Consider placing into docker-entrypoint-initdb.d
+# Benchmarking table; all other tables will be created by the benchmakrs themselves
+echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | "${mysql[@]}"
+
 if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
     echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | "${mysql[@]}"
 
+    # TODO: Consider placing into docker-entrypoint-initdb.d
     # Grant MYSQL_USER rights to all benchmarking databases
     echo "GRANT NDB_STORED_USER ON *.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
     echo "GRANT ALL PRIVILEGES ON \`sysbench%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
