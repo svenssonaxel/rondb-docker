@@ -154,7 +154,7 @@ if [ ! -z $RUN_BENCHMARK ]; then
         echo "At least one mysqld is required to run benchmarks"
         exit 1
     fi
-    
+
     if [ "$RUN_BENCHMARK" == "sysbench_multi" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
         if [ $NUM_MYSQL_NODES -lt 2 ]; then
             echo "At least two mysqlds are required to run the multi-benchmarks"
@@ -453,7 +453,7 @@ if [ $NUM_API_NODES -gt 0 ]; then
         template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
 
         if [ -z $RUN_BENCHMARK ]; then
-            # Simply keep the API container running
+            # Simply keep the API container running, so we can run benchmarks manually
             command=$(printf "$COMMAND_TEMPLATE" "bash -c \"tail -F anything\"")
         else
             command=$(printf "$COMMAND_TEMPLATE" "bash -c \"sleep 120 && bench_run.sh --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
@@ -482,27 +482,25 @@ if [ $NUM_API_NODES -gt 0 ]; then
             fi
         fi
 
-        if [ ! -z $RUN_BENCHMARK ]; then
-            VOLUME_NAME="sysbench_single_$SERVICE_NAME"
-            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "sysbench_single/sysbench_results")
-            template+="$volume"
-            VOLUMES+=("$VOLUME_NAME")
+        VOLUME_NAME="sysbench_single_$SERVICE_NAME"
+        volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "sysbench_single/sysbench_results")
+        template+="$volume"
+        VOLUMES+=("$VOLUME_NAME")
 
-            VOLUME_NAME="sysbench_multi_$SERVICE_NAME"
-            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "sysbench_multi/sysbench_results")
-            template+="$volume"
-            VOLUMES+=("$VOLUME_NAME")
+        VOLUME_NAME="sysbench_multi_$SERVICE_NAME"
+        volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "sysbench_multi/sysbench_results")
+        template+="$volume"
+        VOLUMES+=("$VOLUME_NAME")
 
-            VOLUME_NAME="dbt2_single_$SERVICE_NAME"
-            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "dbt2_single/dbt2_output")
-            template+="$volume"
-            VOLUMES+=("$VOLUME_NAME")
+        VOLUME_NAME="dbt2_single_$SERVICE_NAME"
+        volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "dbt2_single/dbt2_output")
+        template+="$volume"
+        VOLUMES+=("$VOLUME_NAME")
 
-            VOLUME_NAME="dbt2_multi_$SERVICE_NAME"
-            volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "dbt2_multi/dbt2_output")
-            template+="$volume"
-            VOLUMES+=("$VOLUME_NAME")
-        fi
+        VOLUME_NAME="dbt2_multi_$SERVICE_NAME"
+        volume=$(printf "$VOLUME_BENCHMARKING_TEMPLATE" "$VOLUME_NAME" "dbt2_multi/dbt2_output")
+        template+="$volume"
+        VOLUMES+=("$VOLUME_NAME")
 
         template+="$ENV_FIELD"
         env_var=$(printf "$ENV_VAR_TEMPLATE" "MYSQL_PASSWORD" "$MYSQL_PASSWORD")
