@@ -20,35 +20,36 @@ set -e
 # We use mysqld --verbose --help instead of my_print_defaults because the
 # latter only show values present in config files, and not server defaults
 _get_config() {
-	local conf="$1"; shift
-	"$@" --verbose --help 2>/dev/null | grep "^$conf" | awk '$1 == "'"$conf"'" { print $2; exit }'
+    local conf="$1"
+    shift
+    "$@" --verbose --help 2>/dev/null | grep "^$conf" | awk '$1 == "'"$conf"'" { print $2; exit }'
 }
 
 # Generate a random password
 _mkpw() {
-	letter=$(cat /dev/urandom| tr -dc a-zA-Z | dd bs=1 count=16 2> /dev/null )
-	number=$(cat /dev/urandom| tr -dc 0-9 | dd bs=1 count=8 2> /dev/null)
-	special=$(cat /dev/urandom| tr -dc '=+@#%^&*_.,;:?/' | dd bs=1 count=8 2> /dev/null)
+    letter=$(cat /dev/urandom | tr -dc a-zA-Z | dd bs=1 count=16 2>/dev/null)
+    number=$(cat /dev/urandom | tr -dc 0-9 | dd bs=1 count=8 2>/dev/null)
+    special=$(cat /dev/urandom | tr -dc '=+@#%^&*_.,;:?/' | dd bs=1 count=8 2>/dev/null)
 
-	echo $letter$number$special | fold -w 1 | shuf | tr -d '\n'
+    echo $letter$number$special | fold -w 1 | shuf | tr -d '\n'
 }
 
 # Make sure that "--defaults-file" is always run as second argument
 # Otherwise there is a risk that it might not be read
 shift
-set -- mysqld --defaults-file=$RONDB_DATA_DIR/my.cnf "$@" 
+set -- mysqld --defaults-file=$RONDB_DATA_DIR/my.cnf "$@"
 echo "[Entrypoint] \$@: $@"
 
 # Check if entrypoint (and the container) is running as root
 if [ $(id --user) = "0" ]; then
     echo "[Entrypoint] We are running as root; setting MYSQLD_USER to 'mysql'"
-	is_root=1
-	install_devnull="install /dev/null -m0600 -omysql -gmysql"
-	MYSQLD_USER=mysql
+    is_root=1
+    install_devnull="install /dev/null -m0600 -omysql -gmysql"
+    MYSQLD_USER=mysql
 else
     echo "[Entrypoint] Setting MYSQLD_USER to current non-root user"
-	install_devnull="install /dev/null -m0600"
-	MYSQLD_USER=$(id --user --name)
+    install_devnull="install /dev/null -m0600"
+    MYSQLD_USER=$(id --user --name)
 fi
 
 # Test that the server can start. We redirect stdout to /dev/null so
@@ -94,7 +95,7 @@ echo '[Entrypoint] Initializing database...'
 # the default user according to the Dockerfile
 "$@" \
     --log-error-verbosity=3 \
-    --user=$MYSQLD_USER  \
+    --user=$MYSQLD_USER \
     --initialize-insecure
 
 echo '[Entrypoint] Database initialized'
@@ -128,7 +129,7 @@ $install_devnull "$PASSFILE"
 
 # Define the client command used throughout the script
 # "SET @@SESSION.SQL_LOG_BIN=0;" is required for products like group replication to work properly
-mysql=( mysql --defaults-extra-file="$PASSFILE" --protocol=socket -uroot -hlocalhost --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;")
+mysql=(mysql --defaults-extra-file="$PASSFILE" --protocol=socket -uroot -hlocalhost --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;")
 
 echo '[Entrypoint] Overwrote the mysql client command for this script'
 
@@ -164,7 +165,7 @@ fi
 if [ "$MYSQL_DATABASE" ]; then
     echo "[Entrypoint] Creating MYSQL_DATABASE: $MYSQL_DATABASE"
     echo "CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\` ;" | "${mysql[@]}"
-    mysql+=( "$MYSQL_DATABASE" )
+    mysql+=("$MYSQL_DATABASE")
 fi
 
 if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
@@ -179,13 +180,19 @@ fi
 # TODO: Remove this?
 for f in /docker-entrypoint-initdb.d/*; do
     case "$f" in
-        *.sh)  echo "[Entrypoint] running $f"; . "$f" ;;
-        *.sql) echo "[Entrypoint] running $f"; "${mysql[@]}" < "$f" && echo ;;
-        *)     echo "[Entrypoint] ignoring $f" ;;
+    *.sh)
+        echo "[Entrypoint] running $f"
+        . "$f"
+        ;;
+    *.sql)
+        echo "[Entrypoint] running $f"
+        "${mysql[@]}" <"$f" && echo
+        ;;
+    *) echo "[Entrypoint] ignoring $f" ;;
     esac
 done
 
-# When using a local socket, mysqladmin shutdown will only complete when the 
+# When using a local socket, mysqladmin shutdown will only complete when the
 # server is actually down.
 echo '[Entrypoint] Shutting down MySQLd via mysqladmin...'
 mysqladmin --defaults-extra-file="$PASSFILE" shutdown -uroot --socket="$SOCKET"
@@ -201,12 +208,12 @@ if [ ! -z "$MYSQL_ONETIME_PASSWORD" ]; then
     SQL=$(mktemp -u $MYSQL_FILES_DIR/XXXXXXXXXX)
     $install_devnull "$SQL"
     if [ ! -z "$MYSQL_ROOT_HOST" ]; then
-        cat << EOF > "$SQL"
+        cat <<EOF >"$SQL"
 ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE;
 ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
 EOF
     else
-        cat << EOF > "$SQL"
+        cat <<EOF >"$SQL"
 ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
 EOF
     fi
@@ -223,4 +230,5 @@ else
     echo "[Entrypoint] Starting RonDB"
 fi
 echo "[Entrypoint] \$@: $@"
-export MYSQLD_PARENT_PID=$$ ; exec "$@"
+export MYSQLD_PARENT_PID=$$
+exec "$@"
