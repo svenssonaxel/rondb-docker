@@ -170,6 +170,13 @@ fi
 
 if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
     echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | "${mysql[@]}"
+
+    # Grant MYSQL_USER rights to all benchmarking databases
+    echo "GRANT NDB_STORED_USER ON *.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
+    echo "GRANT ALL PRIVILEGES ON \`sysbench%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
+    echo "GRANT ALL PRIVILEGES ON \`dbt%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
+    echo "GRANT ALL PRIVILEGES ON \`sbtest%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
+
     if [ "$MYSQL_DATABASE" ]; then
         echo "GRANT ALL ON \`"$MYSQL_DATABASE"\`.* TO '"$MYSQL_USER"'@'%' ;" | "${mysql[@]}"
     fi
