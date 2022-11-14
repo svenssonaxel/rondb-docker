@@ -333,7 +333,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
 done
 
-# A user for benchmarking
+# A user for benchmarking; Sysbench has "mysql" hard-coded as user
 MYSQL_USER=mysql
 MYSQL_PASSWORD=Abc123?e
 
@@ -431,6 +431,10 @@ if [ $NUM_API_NODES -gt 0 ]; then
                 template+="$BIND_AUTOBENCH_DBT2_MULTI_TEMPLATE"
             fi
         fi
+
+        template+="$ENV_FIELD"
+        env_var=$(printf "$ENV_VAR_TEMPLATE" "MYSQL_PASSWORD" "$MYSQL_PASSWORD")
+        template+="$env_var"
 
         BASE_DOCKER_COMPOSE_FILE+="$template"
 
