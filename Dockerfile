@@ -22,8 +22,10 @@ RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
     --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
     apt-get update -y \
     && apt-get install -y wget tar gzip \
-    libncurses5 libnuma-dev
-    # the last two libraries are required for x86 only
+    libncurses5 libnuma-dev \
+    bc
+    # bc is required by dbt2
+    # libncurses5 & libnuma-dev are required for x86 only
 
 # Creating a cache dir for downloads to avoid redownloading
 ENV DOWNLOADS_CACHE_DIR=/tmp/downloads
