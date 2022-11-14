@@ -23,8 +23,8 @@ Commands to run:
 # Beware that the local platform is linux/arm64 in this case
 ./build_run_docker.sh \
   --rondb-tarball-is-local \
-  -ruri ./rondb-21.04.6-linux-glibc2.31-arm64_v8.tar.gz \
-  -v 21.04.6 -m 1 -d 2 -r 2 -my 1
+  -ruri ./rondb-21.04.9-linux-glibc2.35-arm64_v8.tar.gz \
+  -v 21.04.9 -m 1 -d 2 -r 2 -my 1 -a 1
 
 # Build cross-platform image (linux/arm64 here)
 docker buildx build . --platform=linux/arm64 -t rondb-standalone:21.04.6 \
@@ -89,7 +89,6 @@ When attempting to change any of the configurations inside my.cnf or config.ini,
 
 ## TODO
 
-- Add API nodes
 - Change to #node-groups x #replFactor
 - Avoid running everything twice with 2 mysqlds
 - Are env files even needed in this image?
