@@ -128,6 +128,18 @@ RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
 USER mysql:mysql
 
+ENV BENCHMARKS_DIR=/home/mysql/benchmarks
+RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
+    && mkdir sysbench_single sysbench_multi dbt2_single dbt2_multi dbt2_data
+
+# These benchmark files don't need to change, so they are not mounted
+COPY --chown=mysql:mysql \
+    ./resources/config_templates/dbt2_run_1.conf.single \
+    /home/mysql/benchmarks/dbt2_single/dbt2_run_1.conf.single
+COPY --chown=mysql:mysql \
+    ./resources/config_templates/dbt2_run_1.conf.multi \
+    /home/mysql/benchmarks/dbt2_multi/dbt2_run_1.conf.multi
+
 ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
 CMD ["mysqld"]
