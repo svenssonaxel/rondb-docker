@@ -26,6 +26,12 @@ Commands to run:
   -ruri ./rondb-21.04.9-linux-glibc2.35-arm64_v8.tar.gz \
   -v 21.04.9 -m 1 -d 2 -r 2 -my 1 -a 1
 
+# To automatically run a benchmark with default settings,
+#   add `--run-benchmark <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>`
+#   to the command above; this requires mysqld & api containers;
+#   View the RonDB documentation for how to change benchmarking settings and run
+#   them manually.
+
 # Build cross-platform image (linux/arm64 here)
 docker buildx build . --platform=linux/arm64 -t rondb-standalone:21.04.6 \
   --build-arg RONDB_VERSION=21.04.6 \
