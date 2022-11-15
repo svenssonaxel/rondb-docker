@@ -334,6 +334,8 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
 
     MGM_CONNECTION_STRING+="$SERVICE_NAME:1186,"
 done
+# Remove last comma from MGM_CONNECTION_STRING
+MGM_CONNECTION_STRING=${MGM_CONNECTION_STRING%?}
 
 # We're not bothering with inactive ndbds here
 NUM_NODE_GROUPS=$(($NUM_DATA_NODES / $REPLICATION_FACTOR))
@@ -456,7 +458,12 @@ if [ $NUM_API_NODES -gt 0 ]; then
             # Simply keep the API container running, so we can run benchmarks manually
             command=$(printf "$COMMAND_TEMPLATE" "bash -c \"tail -F anything\"")
         else
-            command=$(printf "$COMMAND_TEMPLATE" "bash -c \"sleep 120 && bench_run.sh --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
+            # Use the ndb_waiter to wait until RonDB has started before running benchmark
+            # Added extra sleep for mysqlds; may have to increase this
+            command=$(printf "$COMMAND_TEMPLATE" ">
+          bash -c \"ndb_waiter --ndb-connectstring=$MGM_CONNECTION_STRING && \
+                    sleep 20 && \
+                    bench_run.sh --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
         fi
 
         template+="$command"
