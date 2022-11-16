@@ -13,7 +13,7 @@ Dependencies:
 - Docker, docker-compose, Docker Buildx
 
 Important:
-- Every container requires an amount of memory; to adjust the amount of resources that Docker allocates to each of the different containers, see the [docker.env](docker.env) file. To check the amount actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781). It should add up to the reserved aggregate amount of memory required by all Docker containers. As a reference, allocating around 27GB of memory in the Docker settings can support 1 mgmd, 2 mysqlds and 9 ndbds (3 node groups x 3 replicas).
+- Every container requires an amount of memory; to adjust the amount of resources that Docker allocates to each of the different containers, see the [docker.env](docker.env) file. To check the amount actually allocated for the respective containers, run `docker stats` after having started a docker-compose instance. To adjust the allowed memory limits for Docker containers, do as described [here](https://stackoverflow.com/a/44533437/9068781). It should add up to the reserved aggregate amount of memory required by all Docker containers. As a reference, allocating around 27GB of memory in the Docker settings can support 1 mgmd, 2 mysqlds and 9 data nodes (3 node groups x 3 replicas).
 - The same can apply to disk space - Docker also defines a maximum storage that all containers can use in the settings. It could however also be that a previous RonDB cluster run (or entirely different Docker containers) are still occupying disk space. In this case, run `docker container prune` and `docker volume prune`.
 - This repository requires a tarball of the RonDB installation to run. Pre-built binaries can be found on [repo.hops.works](https://repo.hops.works/master). Make sure the target platform of the Docker image and the used tarball are identical.
 
@@ -78,7 +78,7 @@ To run benchmarks with custom settings, omit the `--run-benchmark` flag and open
 
 It may be the case that the benchmarks require more DataMemory than is available. You can change the config.ini or the benchmarking configuration files as discussed above to account for this.
 
-*Note*: Benchmarking RonDB with a docker-compose setup on a single machine may not bring optimal performance results. The possibility of benchmarking was added here to give the user an introduction of benchmarking RonDB without needing to spin up a cluster with multiple VMs.
+*Note*: Benchmarking RonDB with a docker-compose setup on a single machine may not bring optimal performance results. This is because both the mysqlds and the ndbmtds (multi-threaded data nodes) scale in performance with more CPUs. In a production setting, each of these programs would be deployed on their own VM, whereby mysqlds and ndbmtds will scale linearly with up to 32 cores. The possibility of benchmarking was added here to give the user an introduction of benchmarking RonDB without needing to spin up a cluster with VMs.
 
 ## Goals of this repository
 
