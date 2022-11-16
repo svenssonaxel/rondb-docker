@@ -110,6 +110,5 @@ It may be the case that the benchmarks require more DataMemory than is available
 ## TODO
 
 - Change to #node-groups x #replFactor
-- Avoid running everything twice with 2 mysqlds
 - Are env files even needed in this image?
   - Add ndb-cluster-connection-pool-nodeids as env to Dockerfile

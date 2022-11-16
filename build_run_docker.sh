@@ -471,6 +471,11 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         template+="$env_var"
         env_var=$(printf "$ENV_VAR_TEMPLATE" "MYSQL_PASSWORD" "$MYSQL_PASSWORD")
         template+="$env_var"
+        if [ $CONTAINER_NUM -eq 1 ]; then
+            # Only need one mysqld to setup databases, users, etc.
+            env_var=$(printf "$ENV_VAR_TEMPLATE" "MYSQL_SETUP_APP" "1")
+            template+="$env_var"
+        fi
 
         BASE_DOCKER_COMPOSE_FILE+="$template"
 
@@ -488,6 +493,8 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         fi
     done
 fi
+# Remove last comma from MULTI_MYSQLD_IPS
+MULTI_MYSQLD_IPS=${MULTI_MYSQLD_IPS%?}
 
 API_SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_API_NODES -gt 0 ]; then

@@ -59,24 +59,6 @@ if [ ! "$result" = "0" ]; then
 fi
 echo "[Entrypoint] The MySQL configuration has been validated"
 
-# Get config
-SOCKET="$(_get_config 'socket' "$@")"
-echo "SOCKET: $SOCKET"
-
-# If the password variable is a filename we use the contents of the file. We
-# read this first to make sure that a proper error is generated for empty files.
-if [ -f "$MYSQL_ROOT_PASSWORD" ]; then
-    MYSQL_ROOT_PASSWORD="$(cat $MYSQL_ROOT_PASSWORD)"
-    if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
-        echo >&2 '[Entrypoint] Empty MYSQL_ROOT_PASSWORD file specified.'
-        exit 1
-    fi
-fi
-
-if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
-    echo >&2 '[Entrypoint] No password option specified for root user.'
-fi
-
 echo '[Entrypoint] Initializing database...'
 
 # Technically, specifying the user here is unnecessary since that is
@@ -88,6 +70,14 @@ echo '[Entrypoint] Initializing database...'
     --explicit_defaults_for_timestamp
 
 echo '[Entrypoint] Database initialized'
+
+export MYSQLD_PARENT_PID=$$
+if [ -z $MYSQL_SETUP_APP ]; then
+    echo '[Entrypoint] Not setting up app here; going straight to execution of mysqld'
+    echo "[Entrypoint] Running: $@"
+    exec "$@"
+fi
+
 echo '[Entrypoint] Executing mysqld as daemon with no networking allowed...'
 
 "$@" \
@@ -96,6 +86,10 @@ echo '[Entrypoint] Executing mysqld as daemon with no networking allowed...'
     --skip-networking
 
 echo '[Entrypoint] Successfully executed mysqld with networking disabled, we can start changing users, passwords & permissions via a local socket without other clients interfering.'
+
+# Get config
+SOCKET="$(_get_config 'socket' "$@")"
+echo "[Entrypoint] SOCKET: $SOCKET"
 
 echo "[Entrypoint] Pinging mysqld..."
 for ping_attempt in {1..30}; do
@@ -111,11 +105,25 @@ if [ "$ping_attempt" = 30 ]; then
     exit 1
 fi
 
+# If the password variable is a filename we use the contents of the file. We
+# read this first to make sure that a proper error is generated for empty files.
+if [ -f "$MYSQL_ROOT_PASSWORD" ]; then
+    MYSQL_ROOT_PASSWORD="$(cat $MYSQL_ROOT_PASSWORD)"
+    if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+        echo >&2 '[Entrypoint] Empty MYSQL_ROOT_PASSWORD file specified.'
+        exit 1
+    fi
+fi
+
+if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+    echo >&2 '[Entrypoint] No password option specified for root user.'
+fi
+
 # Defining the client command used throughout the script
 # Since networking is not permitted for this mysql server, we have to use a socket to connect to it
 # "SET @@SESSION.SQL_LOG_BIN=0;" is required for products like group replication to work properly
-DUMMY_PASWORD=
-function mysql() { command mysql -uroot -hlocalhost --password=$DUMMY_PASWORD --protocol=socket --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;"; }
+DUMMY_ROOT_PASSWORD=
+function mysql() { command mysql -uroot -hlocalhost --password=$DUMMY_ROOT_PASSWORD --protocol=socket --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;"; }
 echo '[Entrypoint] Overwrote the mysql client command for this script'
 
 echo '[Entrypoint] Changing the root user password'
@@ -124,9 +132,8 @@ mysql <<EOF
     FLUSH PRIVILEGES;
 EOF
 
-DUMMY_PASWORD=$MYSQL_ROOT_PASSWORD
+DUMMY_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 
-# TODO: Consider placing into docker-entrypoint-initdb.d
 # Benchmarking table; all other tables will be created by the benchmakrs themselves
 echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | mysql
 
@@ -166,6 +173,5 @@ mysqladmin -uroot --password=$MYSQL_ROOT_PASSWORD shutdown --socket="$SOCKET"
 echo "[Entrypoint] Successfully shut down MySQLd"
 
 echo '[Entrypoint] MySQL init process done. Ready for start up.'
-echo "[Entrypoint] \$@: $@"
-export MYSQLD_PARENT_PID=$$
+echo "[Entrypoint] Running: $@"
 exec "$@"
