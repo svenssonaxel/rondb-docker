@@ -197,14 +197,15 @@ RESULTS_SYS_MULTI_FILEPATH="$SYSBENCH_MULTI_DIR/final_result.txt"
 RESULTS_DBT2_SINGLE_FILEPATH="$DBT2_SINGLE_DIR/final_result.txt"
 RESULTS_DBT2_MULTI_FILEPATH="$DBT2_MULTI_DIR/final_result.txt"
 
+FILE_COMMENT="This file will be filled by the benchmark from within the Docker container when it has finished."
 if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
     mkdir -p $SYSBENCH_SINGLE_DIR $DBT2_SINGLE_DIR
-    touch $RESULTS_SYS_SINGLE_FILEPATH
-    touch $RESULTS_DBT2_SINGLE_FILEPATH
+    echo $FILE_COMMENT >$RESULTS_SYS_SINGLE_FILEPATH
+    echo $FILE_COMMENT >$RESULTS_DBT2_SINGLE_FILEPATH
     if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
         mkdir -p $SYSBENCH_MULTI_DIR $DBT2_MULTI_DIR
-        touch $RESULTS_SYS_MULTI_FILEPATH
-        touch $RESULTS_DBT2_MULTI_FILEPATH
+        echo $FILE_COMMENT >$RESULTS_SYS_MULTI_FILEPATH
+        echo $FILE_COMMENT >$RESULTS_DBT2_MULTI_FILEPATH
     fi
 fi
 
