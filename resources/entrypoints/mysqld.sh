@@ -30,13 +30,8 @@ _get_config() {
     "$@" --verbose --help 2>/dev/null | grep "^$conf" | awk '$1 == "'"$conf"'" { print $2; exit }'
 }
 
-# Make sure that "--defaults-file" is always run as second argument
-# Otherwise there is a risk that it might not be read
-shift
-set -- mysqld --defaults-file=$RONDB_DATA_DIR/my.cnf "$@"
-echo "[Entrypoint] \$@: $@"
-
 # Check if entrypoint (and the container) is running as root
+# Important: Distinguish between MYSQLD_USER and MYSQL_USER
 if [ $(id --user) = "0" ]; then
     echo "[Entrypoint] We are running as root; setting MYSQLD_USER to 'mysql'"
     is_root=1
@@ -47,6 +42,12 @@ else
     install_devnull="install /dev/null -m0600"
     MYSQLD_USER=$(id --user --name)
 fi
+
+# Make sure that "--defaults-file" is always run as second argument
+# Otherwise there is a risk that it might not be read
+shift
+set -- mysqld --defaults-file=$RONDB_DATA_DIR/my.cnf --user=$MYSQLD_USER "$@"
+echo "[Entrypoint] \$@: $@"
 
 # Test that the server can start. We redirect stdout to /dev/null so
 # only the error messages are left.
@@ -65,7 +66,6 @@ echo '[Entrypoint] Initializing database...'
 # the default user according to the Dockerfile
 "$@" \
     --log-error-verbosity=3 \
-    --user=$MYSQLD_USER \
     --initialize-insecure \
     --explicit_defaults_for_timestamp
 
@@ -81,7 +81,6 @@ fi
 echo '[Entrypoint] Executing mysqld as daemon with no networking allowed...'
 
 "$@" \
-    --user=$MYSQLD_USER \
     --daemonize \
     --skip-networking
 
