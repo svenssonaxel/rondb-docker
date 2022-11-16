@@ -25,15 +25,6 @@ _get_config() {
     "$@" --verbose --help 2>/dev/null | grep "^$conf" | awk '$1 == "'"$conf"'" { print $2; exit }'
 }
 
-# Generate a random password
-_mkpw() {
-    letter=$(cat /dev/urandom | tr -dc a-zA-Z | dd bs=1 count=16 2>/dev/null)
-    number=$(cat /dev/urandom | tr -dc 0-9 | dd bs=1 count=8 2>/dev/null)
-    special=$(cat /dev/urandom | tr -dc '=+@#%^&*_.,;:?/' | dd bs=1 count=8 2>/dev/null)
-
-    echo $letter$number$special | fold -w 1 | shuf | tr -d '\n'
-}
-
 # Make sure that "--defaults-file" is always run as second argument
 # Otherwise there is a risk that it might not be read
 shift
@@ -77,16 +68,8 @@ if [ -f "$MYSQL_ROOT_PASSWORD" ]; then
     fi
 fi
 
-if [ -z "$MYSQL_ROOT_PASSWORD" -a -z "$MYSQL_ALLOW_EMPTY_PASSWORD" -a -z "$MYSQL_RANDOM_ROOT_PASSWORD" ]; then
-    echo >&2 '[Entrypoint] No password option specified for new database.'
-    echo >&2 '[Entrypoint] A random onetime password will be generated.'
-    MYSQL_RANDOM_ROOT_PASSWORD=true
-    MYSQL_ONETIME_PASSWORD=true
-fi
-
-if [ ! -z "$MYSQL_RANDOM_ROOT_PASSWORD" ]; then
-    MYSQL_ROOT_PASSWORD="$(_mkpw)"
-    echo "[Entrypoint] Generated a random MySQL root password"
+if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+    echo >&2 '[Entrypoint] No password option specified for root user.'
 fi
 
 echo '[Entrypoint] Initializing database...'
@@ -137,20 +120,12 @@ echo '[Entrypoint] Overwrote the mysql client command for this script'
 echo '[Entrypoint] Running mysql_tzinfo_to_sql /usr/share/zoneinfo | "${mysql[@]}" mysql'
 mysql_tzinfo_to_sql /usr/share/zoneinfo | "${mysql[@]}" mysql
 
-if [ -z "$MYSQL_ROOT_HOST" ]; then
-    ALTER_ROOT_USER="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';"
-else
-    ALTER_ROOT_USER="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; \
-    CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; \
-    GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ; \
-    GRANT PROXY ON ''@'' TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;"
-fi
 
 echo "[Entrypoint] Deleting unknown users; altering the root user"
 "${mysql[@]}" <<-EOSQL
     DELETE FROM mysql.user WHERE user NOT IN ('mysql.infoschema', 'mysql.session', 'mysql.sys', 'root') OR host NOT IN ('localhost');
-    ${ALTER_ROOT_USER}
-    FLUSH PRIVILEGES ;
+    ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+    FLUSH PRIVILEGES;
 EOSQL
 
 if [ ! -z "$MYSQL_ROOT_PASSWORD" ]; then
@@ -160,12 +135,6 @@ if [ ! -z "$MYSQL_ROOT_PASSWORD" ]; then
 password="${MYSQL_ROOT_PASSWORD}"
 EOF
     #mysql+=( -p"${MYSQL_ROOT_PASSWORD}" )
-fi
-
-if [ "$MYSQL_DATABASE" ]; then
-    echo "[Entrypoint] Creating MYSQL_DATABASE: $MYSQL_DATABASE"
-    echo "CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\` ;" | "${mysql[@]}"
-    mysql+=("$MYSQL_DATABASE")
 fi
 
 # TODO: Consider placing into docker-entrypoint-initdb.d
@@ -182,9 +151,6 @@ if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
     echo "GRANT ALL PRIVILEGES ON \`dbt%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
     echo "GRANT ALL PRIVILEGES ON \`sbtest%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
 
-    if [ "$MYSQL_DATABASE" ]; then
-        echo "GRANT ALL ON \`"$MYSQL_DATABASE"\`.* TO '"$MYSQL_USER"'@'%' ;" | "${mysql[@]}"
-    fi
 else
     echo '[Entrypoint] Not creating mysql user. MYSQL_USER and MYSQL_PASSWORD must be specified to do so.'
 fi
@@ -214,33 +180,8 @@ echo "[Entrypoint] Removing PASSFILE '$PASSFILE'"
 rm -f "$PASSFILE"
 unset PASSFILE
 
-# This needs to be done outside the normal init, since mysqladmin shutdown will not work after
-if [ ! -z "$MYSQL_ONETIME_PASSWORD" ]; then
-    echo "[Entrypoint] Setting root user as expired. Password will need to be changed before database can be used."
-    SQL=$(mktemp -u $MYSQL_FILES_DIR/XXXXXXXXXX)
-    $install_devnull "$SQL"
-    if [ ! -z "$MYSQL_ROOT_HOST" ]; then
-        cat <<EOF >"$SQL"
-ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE;
-ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
-EOF
-    else
-        cat <<EOF >"$SQL"
-ALTER USER 'root'@'localhost' PASSWORD EXPIRE;
-EOF
-    fi
-    set -- "$@" --init-file="$SQL"
-    unset SQL
-fi
-
 echo '[Entrypoint] MySQL init process done. Ready for start up.'
 
-if [ -n "$MYSQL_INITIALIZE_ONLY" ]; then
-    echo "[Entrypoint] MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
-    exit 0
-else
-    echo "[Entrypoint] Starting RonDB"
-fi
 echo "[Entrypoint] \$@: $@"
 export MYSQLD_PARENT_PID=$$
 exec "$@"
