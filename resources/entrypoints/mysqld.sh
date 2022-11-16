@@ -16,6 +16,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 set -e
 
+# WARNING: This file has been dummed down to meet the simple requirements of
+#          running / testing a mysql server. DO NOT use this file in a
+#          production setting. Specifically do not use the MYSQL_PASSWORD
+#          in the command-line.
+
 # Fetch value from server config
 # We use mysqld --verbose --help instead of my_print_defaults because the
 # latter only show values present in config files, and not server defaults
@@ -79,7 +84,8 @@ echo '[Entrypoint] Initializing database...'
 "$@" \
     --log-error-verbosity=3 \
     --user=$MYSQLD_USER \
-    --initialize-insecure
+    --initialize-insecure \
+    --explicit_defaults_for_timestamp
 
 echo '[Entrypoint] Database initialized'
 echo '[Entrypoint] Executing mysqld as daemon with no networking allowed...'
@@ -89,7 +95,7 @@ echo '[Entrypoint] Executing mysqld as daemon with no networking allowed...'
     --daemonize \
     --skip-networking
 
-echo '[Entrypoint] Successfully executed daemonized mysqld'
+echo '[Entrypoint] Successfully executed mysqld with networking disabled, we can start changing users, passwords & permissions via a local socket without other clients interfering.'
 
 echo "[Entrypoint] Pinging mysqld..."
 for ping_attempt in {1..30}; do
@@ -105,57 +111,40 @@ if [ "$ping_attempt" = 30 ]; then
     exit 1
 fi
 
-# To avoid using password on commandline, put it in a temporary file.
-# The file is only populated when and if the root password is set.
-PASSFILE=$(mktemp -u $MYSQL_FILES_DIR/XXXXXXXXXX)
-$install_devnull "$PASSFILE"
-
-# Define the client command used throughout the script
+# Defining the client command used throughout the script
+# Since networking is not permitted for this mysql server, we have to use a socket to connect to it
 # "SET @@SESSION.SQL_LOG_BIN=0;" is required for products like group replication to work properly
-mysql=(mysql --defaults-extra-file="$PASSFILE" --protocol=socket -uroot -hlocalhost --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;")
-
+DUMMY_PASWORD=
+function mysql() { command mysql -uroot -hlocalhost --password=$DUMMY_PASWORD --protocol=socket --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;"; }
 echo '[Entrypoint] Overwrote the mysql client command for this script'
 
-# TODO: Fix this
-echo '[Entrypoint] Running mysql_tzinfo_to_sql /usr/share/zoneinfo | "${mysql[@]}" mysql'
-mysql_tzinfo_to_sql /usr/share/zoneinfo | "${mysql[@]}" mysql
-
-
-echo "[Entrypoint] Deleting unknown users; altering the root user"
-"${mysql[@]}" <<-EOSQL
-    DELETE FROM mysql.user WHERE user NOT IN ('mysql.infoschema', 'mysql.session', 'mysql.sys', 'root') OR host NOT IN ('localhost');
+echo '[Entrypoint] Changing the root user password'
+mysql <<EOF
     ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
     FLUSH PRIVILEGES;
-EOSQL
-
-if [ ! -z "$MYSQL_ROOT_PASSWORD" ]; then
-    echo "[Entrypoint] Creating temporary config file with password at '$PASSFILE'"
-    cat >"$PASSFILE" <<EOF
-[client]
-password="${MYSQL_ROOT_PASSWORD}"
 EOF
-    #mysql+=( -p"${MYSQL_ROOT_PASSWORD}" )
-fi
+
+DUMMY_PASWORD=$MYSQL_ROOT_PASSWORD
 
 # TODO: Consider placing into docker-entrypoint-initdb.d
 # Benchmarking table; all other tables will be created by the benchmakrs themselves
-echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | "${mysql[@]}"
+echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | mysql
 
-if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
-    echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | "${mysql[@]}"
+if [ "$MYSQL_USER" ]; then
+    echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | mysql
 
     # TODO: Consider placing into docker-entrypoint-initdb.d
     # Grant MYSQL_USER rights to all benchmarking databases
-    echo "GRANT NDB_STORED_USER ON *.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
-    echo "GRANT ALL PRIVILEGES ON \`sysbench%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
-    echo "GRANT ALL PRIVILEGES ON \`dbt%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
-    echo "GRANT ALL PRIVILEGES ON \`sbtest%\`.* TO '$MYSQL_USER'@'%' ;" | "${mysql[@]}"
+    echo "GRANT NDB_STORED_USER ON *.* TO '$MYSQL_USER'@'%' ;" | mysql
+    echo "GRANT ALL PRIVILEGES ON \`sysbench%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
+    echo "GRANT ALL PRIVILEGES ON \`dbt%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
+    echo "GRANT ALL PRIVILEGES ON \`sbtest%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
 
 else
-    echo '[Entrypoint] Not creating mysql user. MYSQL_USER and MYSQL_PASSWORD must be specified to do so.'
+    echo '[Entrypoint] Not creating custom user. MYSQL_USER and MYSQL_PASSWORD must be specified to do so.'
 fi
 
-# TODO: Remove this?
+# TODO: Mount this via Docker
 for f in /docker-entrypoint-initdb.d/*; do
     case "$f" in
     *.sh)
@@ -173,15 +162,10 @@ done
 # When using a local socket, mysqladmin shutdown will only complete when the
 # server is actually down.
 echo '[Entrypoint] Shutting down MySQLd via mysqladmin...'
-mysqladmin --defaults-extra-file="$PASSFILE" shutdown -uroot --socket="$SOCKET"
+mysqladmin -uroot --password=$MYSQL_ROOT_PASSWORD shutdown --socket="$SOCKET"
 echo "[Entrypoint] Successfully shut down MySQLd"
 
-echo "[Entrypoint] Removing PASSFILE '$PASSFILE'"
-rm -f "$PASSFILE"
-unset PASSFILE
-
 echo '[Entrypoint] MySQL init process done. Ready for start up.'
-
 echo "[Entrypoint] \$@: $@"
 export MYSQLD_PARENT_PID=$$
 exec "$@"
