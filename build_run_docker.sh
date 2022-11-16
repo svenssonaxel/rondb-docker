@@ -487,13 +487,13 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
             CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
         done
 
-        MULTI_MYSQLD_IPS+="$SERVICE_NAME,"
+        MULTI_MYSQLD_IPS+="$SERVICE_NAME;"
         if [ $CONTAINER_NUM -eq 1 ]; then
             SINGLE_MYSQLD_IP+="$SERVICE_NAME"
         fi
     done
 fi
-# Remove last comma from MULTI_MYSQLD_IPS
+# Remove last semi-colon from MULTI_MYSQLD_IPS
 MULTI_MYSQLD_IPS=${MULTI_MYSQLD_IPS%?}
 
 API_SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
