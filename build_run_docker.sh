@@ -155,6 +155,15 @@ if [ ! -z $RUN_BENCHMARK ]; then
         exit 1
     fi
 
+    # This is not a hard requirement, but is better for benchmarking
+    # One api container can however also run multiple Sysbench instances against multiple mysqld containers
+    if [ "$RUN_BENCHMARK" == "sysbench_multi" ]; then
+        if [ $NUM_MYSQL_NODES -lt $NUM_API_NODES ]; then
+            echo "For sysbench_multi, there should be at least as many mysqld as api containers"
+            exit 1
+        fi
+    fi
+
     if [ "$RUN_BENCHMARK" == "sysbench_multi" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
         if [ $NUM_MYSQL_NODES -lt 2 ]; then
             echo "At least two mysqlds are required to run the multi-benchmarks"
@@ -167,6 +176,12 @@ if [ ! -z $RUN_BENCHMARK ]; then
             echo "Can only run dbt2 benchmarks with one api container"
             exit 1
         fi
+    fi
+
+    # TODO: Make this work with BENCHMARK_SERVERS in sysbench_multi
+    if [ $NUM_API_NODES -gt 1 ]; then
+        echo "Running more than one api container for Sysbench benchmarks is currently not supported"
+        exit 1
     fi
 fi
 
@@ -328,10 +343,16 @@ COMMAND_TEMPLATE="
 echo "Filling out templates"
 
 source $SCRIPT_DIR/docker.env
+source $SCRIPT_DIR/misc_configs.env
 CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" "$REPLICATION_FACTOR")
 MGM_CONNECTION_STRING=''
 SINGLE_MYSQLD_IP=''
 MULTI_MYSQLD_IPS=''
+
+# TODO: Use this for BENCHMARK_SERVERS in Sysbench
+SINGLE_API_IP=''
+MULTI_API_IPS=''
+
 VOLUMES=()
 BASE_DOCKER_COMPOSE_FILE="version: '3.8'
 
@@ -421,11 +442,6 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
 done
 
-# A user for benchmarking; Sysbench has "mysql" hard-coded as user
-MYSQL_USER=mysql
-MYSQL_PASSWORD=Abc123?e
-
-SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_MYSQL_NODES -gt 0 ]; then
     for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
         template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
@@ -478,8 +494,8 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
 
         BASE_DOCKER_COMPOSE_FILE+="$template"
 
-        NODE_ID_OFFSET=$(($((CONTAINER_NUM - 1)) * $SLOTS_PER_CONTAINER))
-        for SLOT_NUM in $(seq $SLOTS_PER_CONTAINER); do
+        NODE_ID_OFFSET=$(($((CONTAINER_NUM - 1)) * $MYSQLD_SLOTS_PER_CONTAINER))
+        for SLOT_NUM in $(seq $MYSQLD_SLOTS_PER_CONTAINER); do
             NODE_ID=$((67 + $NODE_ID_OFFSET + $(($SLOT_NUM - 1))))
             # NodeId, NodeActive, ArbitrationRank, HostName
             SLOT=$(printf "$CONFIG_INI_MYSQLD_TEMPLATE" "$NODE_ID" "1" "1" "$SERVICE_NAME")
@@ -495,7 +511,6 @@ fi
 # Remove last semi-colon from MULTI_MYSQLD_IPS
 MULTI_MYSQLD_IPS=${MULTI_MYSQLD_IPS%?}
 
-API_SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_API_NODES -gt 0 ]; then
     for CONTAINER_NUM in $(seq $NUM_API_NODES); do
         template="$RONDB_DOCKER_COMPOSE_TEMPLATE"
@@ -577,8 +592,15 @@ if [ $NUM_API_NODES -gt 0 ]; then
             SLOT=$(printf "$CONFIG_INI_API_TEMPLATE" "$NODE_ID" "1" "1" "$SERVICE_NAME")
             CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
         done
+
+        MULTI_API_IPS+="$SERVICE_NAME;"
+        if [ $CONTAINER_NUM -eq 1 ]; then
+            SINGLE_API_IP+="$SERVICE_NAME"
+        fi
     done
 fi
+# Remove last semi-colon from MULTI_API_IPS
+MULTI_API_IPS=${MULTI_API_IPS%?}
 
 # Append volumes to end of file
 BASE_DOCKER_COMPOSE_FILE+="
@@ -601,25 +623,36 @@ echo "Writing data to files"
 
 if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
     echo "Writing my.cnf"
-    MY_CNF=$(printf "$MY_CNF_TEMPLATE" "$SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING")
+    MY_CNF=$(printf "$MY_CNF_TEMPLATE" "$MYSQLD_SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING")
     echo "$MY_CNF" >$MY_CNF_FILEPATH
 
     if [ "$NUM_API_NODES" -gt 0 ]; then
         echo "Writing benchmarking files for single mysqlds"
 
-        AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD" "$NUM_MYSQL_NODES")
+        # This will always have 1 api and 1 mysqld container, and 1 Sysbench instance
+        AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" \
+            "$SINGLE_MYSQLD_IP" "$MYSQL_USER" "$MYSQL_PASSWORD" \
+            "$MYSQLD_SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING" \
+            "1")
         echo "$AUTOBENCH_SYSBENCH_SINGLE" >$AUTOBENCH_SYS_SINGLE_FILEPATH
 
-        AUTOBENCH_DBT2_SINGLE=$(printf "$AUTOBENCH_DBT2_TEMPLATE" "$MGM_CONNECTION_STRING" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD")
+        AUTOBENCH_DBT2_SINGLE=$(printf "$AUTOBENCH_DBT2_TEMPLATE" \
+            "$SINGLE_MYSQLD_IP" "$MYSQL_USER" "$MYSQL_PASSWORD" \
+            "$MYSQLD_SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING")
         echo "$AUTOBENCH_DBT2_SINGLE" >$AUTOBENCH_DBT2_SINGLE_FILEPATH
 
         if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
             echo "Writing benchmarking files for multiple mysqlds"
 
-            AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD" "$NUM_MYSQL_NODES")
+            AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" \
+                "$MULTI_MYSQLD_IPS" "$MYSQL_USER" "$MYSQL_PASSWORD" \
+                "$MYSQLD_SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING" \
+                "$NUM_MYSQL_NODES")
             echo "$AUTOBENCH_SYSBENCH_MULTI" >$AUTOBENCH_SYS_MULTI_FILEPATH
 
-            AUTOBENCH_DBT2_MULTI=$(printf "$AUTOBENCH_DBT2_TEMPLATE" "$MGM_CONNECTION_STRING" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD")
+            AUTOBENCH_DBT2_MULTI=$(printf "$AUTOBENCH_DBT2_TEMPLATE" \
+                "$MULTI_MYSQLD_IPS" "$MYSQL_USER" "$MYSQL_PASSWORD" \
+                "$MYSQLD_SLOTS_PER_CONTAINER" "$MGM_CONNECTION_STRING")
             echo "$AUTOBENCH_DBT2_MULTI" >$AUTOBENCH_DBT2_MULTI_FILEPATH
         fi
     fi
