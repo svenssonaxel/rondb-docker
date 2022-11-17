@@ -84,13 +84,14 @@ It may be the case that the benchmarks require more resources than are configure
 - Increase the `NoOfFragmentLogFiles` when the amount of testing data is high; also increase the memory limits for apis in the [docker.env](docker.env) file to be able to load the data.
 - Decrease the amount of testing data:
   - For Sysbench, decrease `SYSBENCH_ROWS` in autobench.conf
-  - For DBT2, decrease the number of warehouses in autobench.conf and the dbt2_run_1.conf
+  - For DBT2, decrease the number of warehouses in autobench.conf and the dbt2_run_1.conf. One warehouse requires around 100MB of DataMemory in the data nodes.
 - Run with a minimal setup:
   - mgmds = 1
   - replication factor = 1
   - node groups = 1
   - mysqlds = 1 (or 2 for multi-benchmarks)
   - apis = 1
+- Lastly, one can always be unlucky and run into a timing issue at cluster startup; simply retrying this can sometimes help
 
 ***Note***: Benchmarking RonDB with a docker-compose setup on a single machine may not bring optimal performance results. This is because both the mysqlds and the ndbmtds (multi-threaded data nodes) scale in performance with more CPUs. In a production setting, each of these programs would be deployed on their own VM, whereby mysqlds and ndbmtds will scale linearly with up to 32 cores. The possibility of benchmarking was added here to give the user an introduction of benchmarking RonDB without needing to spin up a cluster with VMs.
 
