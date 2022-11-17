@@ -147,8 +147,8 @@ if [ ! -z $RUN_BENCHMARK ]; then
         "$RUN_BENCHMARK" != "dbt2_multi" ]; then
         echo "Benchmark has to be one of <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>"
         exit 1
-    elif [ $NUM_API_NODES -lt 1 ]; then
-        echo "At least one api is required to run benchmarks"
+    elif [ $NUM_API_NODES -ne 1 ]; then
+        echo "Benchmarking is only run on a single api container; using more wastes resources"
         exit 1
     elif [ $NUM_MYSQL_NODES -lt 1 ]; then
         echo "At least one mysqld is required to run benchmarks"
@@ -158,13 +158,6 @@ if [ ! -z $RUN_BENCHMARK ]; then
     if [ "$RUN_BENCHMARK" == "sysbench_multi" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
         if [ $NUM_MYSQL_NODES -lt 2 ]; then
             echo "At least two mysqlds are required to run the multi-benchmarks"
-            exit 1
-        fi
-    fi
-
-    if [ "$RUN_BENCHMARK" == "dbt2_single" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
-        if [ $NUM_API_NODES -gt 1 ]; then
-            echo "Can only run dbt2 benchmarks with one api container"
             exit 1
         fi
     fi
