@@ -16,7 +16,6 @@ Usage:
         [-v         --rondb-version             <string>]
         [-ruri      --rondb-tarball-uri         <string>]
         [-m         --num-mgm-nodes             <int>   ]
-        [-d         --num-data-nodes            <int>   ]
         [-g         --node-groups               <int>   ]
         [-r         --replication-factor        <int>   ]
         [-my        --num-mysql-nodes           <int>   ]
