@@ -130,15 +130,9 @@ RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
 USER mysql:mysql
 
-# the output directories are useful as volumes
 ENV BENCHMARKS_DIR=/home/mysql/benchmarks
 RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
-    && mkdir -p \
-    sysbench_single/sysbench_results \
-    sysbench_multi/sysbench_results \
-    dbt2_single/dbt2_output \
-    dbt2_multi/dbt2_output \
-    dbt2_data
+    && mkdir -p sysbench_single sysbench_multi dbt2_single dbt2_multi dbt2_data
 
 # These benchmark files don't need to change, so they are not mounted
 COPY --chown=mysql:mysql \
