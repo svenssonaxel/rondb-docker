@@ -25,7 +25,7 @@ Commands to run:
 ./build_run_docker.sh \
   --rondb-tarball-is-local \
   -ruri ./rondb-21.04.9-linux-glibc2.35-arm64_v8.tar.gz \
-  -v 21.04.9 -m 1 -d 2 -r 2 -my 1 -a 1
+  -v 21.04.9 -m 1 -g 1 -r 2 -my 1 -a 1
 
 # Build cross-platform image (linux/arm64 here)
 docker buildx build . --platform=linux/arm64 -t rondb-standalone:21.04.6 \
@@ -71,7 +71,7 @@ The Docker images come with a set of benchmarks pre-installed. To run any of the
 ./build_run_docker.sh \
   --rondb-tarball-is-local \
   -ruri ./rondb-21.04.9-linux-glibc2.35-arm64_v8.tar.gz \
-  -v 21.04.9 -m 1 -d 2 -r 2 -my 1 -a 1 \
+  -v 21.04.9 -m 1 -g 1 -r 2 -my 1 -a 1 \
   --run-benchmark <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>
 ```
 
@@ -112,6 +112,5 @@ It may be the case that the benchmarks require more DataMemory than is available
 
 ## TODO
 
-- Change to #node-groups x #replFactor
 - Are env files even needed in this image?
   - Add ndb-cluster-connection-pool-nodeids as env to Dockerfile

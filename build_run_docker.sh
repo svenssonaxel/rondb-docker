@@ -17,6 +17,7 @@ Usage:
         [-ruri      --rondb-tarball-uri         <string>]
         [-m         --num-mgm-nodes             <int>   ]
         [-d         --num-data-nodes            <int>   ]
+        [-g         --node-groups               <int>   ]
         [-r         --replication-factor        <int>   ]
         [-my        --num-mysql-nodes           <int>   ]
         [-a         --num-api-nodes             <int>   ]
@@ -39,10 +40,10 @@ fi
 # Defaults
 RONDB_TARBALL_LOCAL_REMOTE=remote
 NUM_MGM_NODES=1
-NUM_DATA_NODES=1
 NUM_MYSQL_NODES=0
 NUM_API_NODES=0
 REPLICATION_FACTOR=1
+NODE_GROUPS=1
 RUN_BENCHMARK=
 
 POSITIONAL=()
@@ -65,8 +66,8 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    -d | --num-data-nodes)
-        NUM_DATA_NODES="$2"
+    -g | --node-groups)
+        NODE_GROUPS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -110,7 +111,7 @@ echo "RonDB version                             = ${RONDB_VERSION}"
 echo "RonDB tarball local/remote                = ${RONDB_TARBALL_LOCAL_REMOTE}"
 echo "RonDB tarball URI                         = ${RONDB_TARBALL_URI}"
 echo "Number of management nodes                = ${NUM_MGM_NODES}"
-echo "Number of data nodes                      = ${NUM_DATA_NODES}"
+echo "Node groups                               = ${NODE_GROUPS}"
 echo "Replication factor                        = ${REPLICATION_FACTOR}"
 echo "Number of mysql nodes                     = ${NUM_MYSQL_NODES}"
 echo "Number of api nodes                       = ${NUM_API_NODES}"
@@ -127,17 +128,11 @@ if [ $NUM_MGM_NODES -lt 1 ]; then
 elif [ $REPLICATION_FACTOR -lt 1 -o $REPLICATION_FACTOR -gt 4 ]; then
     echo "The replication factor has to be >=1 and <5; It is currently $REPLICATION_FACTOR"
     exit 1
-elif [ $NUM_DATA_NODES -lt 1 ]; then
-    echo "At least 1 ndbd is required"
+elif [ $NODE_GROUPS -lt 1 ]; then
+    echo "At least 1 node group is required"
     exit 1
 elif [ -z $RONDB_TARBALL_URI ]; then
     echo "The parameter --rondb-tarball-uri is not optional"
-    exit 1
-fi
-
-MOD_NDBDS=$(($NUM_DATA_NODES % $REPLICATION_FACTOR))
-if [ $MOD_NDBDS -ne 0 ]; then
-    echo "The number of data nodes needs to be a multiple of the replication factor"
     exit 1
 fi
 
@@ -187,7 +182,7 @@ if [ ! -z $RUN_BENCHMARK ]; then
     fi
 fi
 
-FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_d${NUM_DATA_NODES}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
+FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_g${NODE_GROUPS}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
 
 # https://stackoverflow.com/a/246128/9068781
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
@@ -375,7 +370,7 @@ done
 MGM_CONNECTION_STRING=${MGM_CONNECTION_STRING%?}
 
 # We're not bothering with inactive ndbds here
-NUM_NODE_GROUPS=$(($NUM_DATA_NODES / $REPLICATION_FACTOR))
+NUM_DATA_NODES=$(($NODE_GROUPS * $REPLICATION_FACTOR))
 for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     NODE_ID=$CONTAINER_NUM
 
@@ -408,7 +403,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
 
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
-    NODE_GROUP=$(($CONTAINER_NUM % $NUM_NODE_GROUPS))
+    NODE_GROUP=$(($CONTAINER_NUM % $NODE_GROUPS))
     # NodeId, NodeGroup, NodeActive, HostName, ServerPort, FileSystemPath (NodeId)
     SLOT=$(printf "$CONFIG_INI_NDBD_TEMPLATE" "$NODE_ID" "$NODE_GROUP" "1" "$SERVICE_NAME" "11860" "$NODE_ID")
     CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
