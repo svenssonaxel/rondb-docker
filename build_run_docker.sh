@@ -179,7 +179,8 @@ if [ ! -z $RUN_BENCHMARK ]; then
         fi
     fi
 
-    # TODO: Make this work with BENCHMARK_SERVERS in sysbench_multi
+    # TODO: Make this work with BENCHMARK_SERVERS in sysbench_multi; This requires some
+    #   care in synchronizing the api nodes when executing the benchmark.
     if [ $NUM_API_NODES -gt 1 ]; then
         echo "Running more than one api container for Sysbench benchmarks is currently not supported"
         exit 1
