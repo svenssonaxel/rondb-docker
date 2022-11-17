@@ -20,13 +20,6 @@ echo "[Entrypoint] RonDB Docker Image"
 
 echo "\$@: $@"
 
-# If command starts with an option, prepend mysqld
-# This allows users to add command-line options without
-# needing to specify the "mysqld" command
-if [ "${1:0:1}" = '-' ]; then
-	set -- mysqld "$@"
-fi
-
 # https://stackoverflow.com/a/246128/9068781
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
@@ -51,6 +44,7 @@ else
 		set -- "$@" -f $RONDB_DATA_DIR/config.ini --configdir=$RONDB_DATA_DIR/log
 	elif [ "$1" == "ndbmtd" ]; then
 		echo "[Entrypoint] Starting ndbmtd"
+		# Command for more verbosity with ndbmtds: `set -- "$@" --verbose=TRUE`
 	elif [ "$1" == "ndb_mgm" ]; then
 		echo "[Entrypoint] Starting ndb_mgm"
 	fi
