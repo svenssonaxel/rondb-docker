@@ -5,6 +5,7 @@
 ## i. Generates a config.ini & my.cnf file
 ## i. Creates docker-compose file
 ## i. Runs docker-compose
+## i. Optionally runs a benchmark
 
 set -e
 
