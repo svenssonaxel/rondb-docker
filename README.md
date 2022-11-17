@@ -6,7 +6,7 @@ This repository creates the possibility of:
 - benchmarking RonDB with Sysbench and DBT2
 - demo the usage of managed RonDB (upcoming)
 
-To learn more about RonDB, have a look [here](rondb.com).
+To learn more about RonDB, have a look at [rondb.com](https://rondb.com).
 
 ## Quickstart
 
