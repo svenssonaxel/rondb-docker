@@ -182,6 +182,10 @@ if [ ! -z $RUN_BENCHMARK ]; then
     fi
 fi
 
+## Uncomment this for quicker testing
+# yes | docker container prune
+# yes | docker volume prune
+
 FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_g${NODE_GROUPS}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
 
 # https://stackoverflow.com/a/246128/9068781
@@ -305,6 +309,13 @@ VOLUME_BENCHMARKING_TEMPLATE="
 COMMAND_TEMPLATE="
       command: %s"
 
+# This is experimental to optimise performance
+RESOURCES_SNIPPET="
+      ulimits:
+        rtprio:
+          soft: 99
+          hard: 99"
+
 #######################
 #######################
 #######################
@@ -419,6 +430,7 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         template=$(echo "$template" | sed "s/<insert-service-name>/$SERVICE_NAME/g")
         command=$(printf "$COMMAND_TEMPLATE" "[\"mysqld\"]")
         template+="$command"
+        # template+="$RESOURCES_SNIPPET"
 
         # Make sure these memory boundaries are allowed in Docker settings!
         # To check whether they are being used use `docker stats`
