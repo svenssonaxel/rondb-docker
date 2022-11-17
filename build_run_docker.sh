@@ -526,7 +526,7 @@ if [ $NUM_API_NODES -gt 0 ]; then
             command=$(printf "$COMMAND_TEMPLATE" ">
           bash -c \"ndb_waiter --ndb-connectstring=$MGM_CONNECTION_STRING &&
                     sleep 25 &&
-                    bench_run.sh --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
+                    bench_run.sh --verbose --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
         fi
 
         template+="$command"
