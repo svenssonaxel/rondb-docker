@@ -425,7 +425,6 @@ done
 MYSQL_USER=mysql
 MYSQL_PASSWORD=Abc123?e
 
-# TODO: Add env variable so that only one mysqld container runs the initialisation
 SLOTS_PER_CONTAINER=2 # Cannot scale out a lot on a single machine
 if [ $NUM_MYSQL_NODES -gt 0 ]; then
     for CONTAINER_NUM in $(seq $NUM_MYSQL_NODES); do
@@ -608,7 +607,7 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
     if [ "$NUM_API_NODES" -gt 0 ]; then
         echo "Writing benchmarking files for single mysqlds"
 
-        AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD" "$NUM_API_NODES")
+        AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD" "$NUM_MYSQL_NODES")
         echo "$AUTOBENCH_SYSBENCH_SINGLE" >$AUTOBENCH_SYS_SINGLE_FILEPATH
 
         AUTOBENCH_DBT2_SINGLE=$(printf "$AUTOBENCH_DBT2_TEMPLATE" "$SINGLE_MYSQLD_IP" "$MYSQL_PASSWORD")
@@ -617,7 +616,7 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
         if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
             echo "Writing benchmarking files for multiple mysqlds"
 
-            AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD" "$NUM_API_NODES")
+            AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD" "$NUM_MYSQL_NODES")
             echo "$AUTOBENCH_SYSBENCH_MULTI" >$AUTOBENCH_SYS_MULTI_FILEPATH
 
             AUTOBENCH_DBT2_MULTI=$(printf "$AUTOBENCH_DBT2_TEMPLATE" "$MULTI_MYSQLD_IPS" "$MYSQL_PASSWORD")
