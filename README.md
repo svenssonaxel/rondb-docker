@@ -64,6 +64,8 @@ When attempting to change any of the configurations inside my.cnf or config.ini,
 
 ## Running Benchmarks
 
+***Warning***: Not all RonDB tarballs for *ARM64* on repo.hops.works contain the benchmarking binaries/scripts. This will however change in the near future. It is on the other hand also possible to build the RonDB tarball from source, including the benchmarking files.
+
 The Docker images come with a set of benchmarks pre-installed. To run any of these benchmarks with the default configurations, run:
 
 ```bash
