@@ -492,12 +492,17 @@ if [ $NUM_API_NODES -gt 0 ]; then
             # Simply keep the API container running, so we can run benchmarks manually
             command=$(printf "$COMMAND_TEMPLATE" "bash -c \"tail -F anything\"")
         else
+            GENERATE_DBT2_DATA_FLAG=""
+            if [ "$RUN_BENCHMARK" == "dbt2_single" -o "$RUN_BENCHMARK" == "dbt2_multi" ]; then
+                GENERATE_DBT2_DATA_FLAG="--generate-dbt2-data"
+            fi
+
             # Use the ndb_waiter to wait until RonDB has started before running benchmark
             # Added extra sleep for mysqlds; may have to increase this
             command=$(printf "$COMMAND_TEMPLATE" ">
           bash -c \"ndb_waiter --ndb-connectstring=$MGM_CONNECTION_STRING &&
                     sleep 25 &&
-                    bench_run.sh --verbose --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK\"")
+                    bench_run.sh --verbose --default-directory /home/mysql/benchmarks/$RUN_BENCHMARK $GENERATE_DBT2_DATA_FLAG\"")
         fi
 
         template+="$command"
