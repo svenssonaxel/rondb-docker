@@ -77,9 +77,9 @@ ENV HOPSWORK_DIR=/srv/hops
 ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
 
 # Processing tarballs from previous build stage
-RUN mkdir -p $RONDB_BIN_DIR
-RUN tar xfz ./temp_tarball.tar.gz -C $RONDB_BIN_DIR --strip-components=1
-RUN rm ./temp_tarball.tar.gz
+RUN mkdir -p $RONDB_BIN_DIR \
+    && tar xfz ./temp_tarball.tar.gz -C $RONDB_BIN_DIR --strip-components=1 \
+    && rm ./temp_tarball.tar.gz
 
 WORKDIR $HOPSWORK_DIR
 
@@ -97,8 +97,7 @@ ENV MGMD_DATA_DIR=$RONDB_DATA_DIR/mgmd
 ENV MYSQLD_DATA_DIR=$RONDB_DATA_DIR/mysql
 ENV NDBD_DATA_DIR=$RONDB_DATA_DIR/ndb_data
 
-RUN mkdir -p $MGMD_DATA_DIR
-RUN mkdir -p $MYSQLD_DATA_DIR
+RUN mkdir -p $MGMD_DATA_DIR $MYSQLD_DATA_DIR
 RUN for i in $(seq 64); do mkdir -p $NDBD_DATA_DIR/$i; done
 
 ENV MYSQL_FILES_DIR=$RONDB_DATA_DIR/mysql-files
@@ -110,18 +109,13 @@ ENV BACKUP_DATA_DIR=$RONDB_DATA_DIR/ndb/backups
 ENV DISK_COLUMNS_DIR=$RONDB_DATA_DIR/ndb_disk_columns
 ENV MYSQL_UNIX_PORT=$RONDB_DATA_DIR/mysql.sock
 
-RUN mkdir -p $LOG_DIR
-RUN mkdir -p $SCRIPTS_DIR
-RUN mkdir -p $BACKUP_DATA_DIR
-RUN mkdir -p $DISK_COLUMNS_DIR
+RUN mkdir -p $LOG_DIR $SCRIPTS_DIR $BACKUP_DATA_DIR $DISK_COLUMNS_DIR
 
 COPY ./resources/rondb_scripts $SCRIPTS_DIR
 RUN touch $MYSQL_UNIX_PORT
 
 RUN groupadd mysql && adduser mysql --ingroup mysql
 RUN chown mysql:mysql -R .
-
-# RUN chmod -R 755 /var/lib/mysql
 
 # we expect this image to be used as base image to other
 # images with additional entrypoints
