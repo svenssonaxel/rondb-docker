@@ -11,25 +11,25 @@ set -e
 
 function print_usage() {
     cat <<EOF
-Usage:
-  $0    
-        [-v         --rondb-version             <string>]
-        [-ruri      --rondb-tarball-uri         <string>]
-        [-m         --num-mgm-nodes             <int>   ]
-        [-g         --node-groups               <int>   ]
-        [-r         --replication-factor        <int>   ]
-        [-my        --num-mysql-nodes           <int>   ]
-        [-a         --num-api-nodes             <int>   ]
-        [-b         --run-benchmark             <string>
-                        Options: <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>
-                                                        ]
-        [-rtarl     --rondb-tarball-is-local            ]
+Usage: $0    
+    [-h         --help                              ]
+    [-v         --rondb-version             <string>]
+    [-ruri      --rondb-tarball-uri         <string>]
+    [-m         --num-mgm-nodes             <int>   ]
+    [-g         --node-groups               <int>   ]
+    [-r         --replication-factor        <int>   ]
+    [-my        --num-mysql-nodes           <int>   ]
+    [-a         --num-api-nodes             <int>   ]
+    [-b         --run-benchmark             <string>
+                    Options: <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>
+                                                    ]
+    [-rtarl     --rondb-tarball-is-local            ]
 EOF
 }
 
 if [ -z "$1" ]; then
     print_usage
-    exit 0
+    exit 1
 fi
 
 #######################
@@ -50,6 +50,10 @@ while [[ $# -gt 0 ]]; do
     key="$1"
 
     case $key in
+    -h | --help)
+        print_usage
+        exit 0
+        ;;
     -v | --rondb-version)
         RONDB_VERSION="$2"
         shift # past argument
@@ -104,21 +108,29 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-set -- "${POSITIONAL[@]}" # restore positional parameters
+echo "#################"
+echo "Parsed arguments:"
+echo "#################"
+echo
+echo "RonDB version                 = ${RONDB_VERSION}"
+echo "RonDB tarball local/remote    = ${RONDB_TARBALL_LOCAL_REMOTE}"
+echo "RonDB tarball URI             = ${RONDB_TARBALL_URI}"
+echo "Number of management nodes    = ${NUM_MGM_NODES}"
+echo "Node groups                   = ${NODE_GROUPS}"
+echo "Replication factor            = ${REPLICATION_FACTOR}"
+echo "Number of mysql nodes         = ${NUM_MYSQL_NODES}"
+echo "Number of api nodes           = ${NUM_API_NODES}"
+echo "Run benchmark                 = ${RUN_BENCHMARK}"
+echo
 
-echo "RonDB version                             = ${RONDB_VERSION}"
-echo "RonDB tarball local/remote                = ${RONDB_TARBALL_LOCAL_REMOTE}"
-echo "RonDB tarball URI                         = ${RONDB_TARBALL_URI}"
-echo "Number of management nodes                = ${NUM_MGM_NODES}"
-echo "Node groups                               = ${NODE_GROUPS}"
-echo "Replication factor                        = ${REPLICATION_FACTOR}"
-echo "Number of mysql nodes                     = ${NUM_MYSQL_NODES}"
-echo "Number of api nodes                       = ${NUM_API_NODES}"
-echo "Run benchmark                             = ${RUN_BENCHMARK}"
-
+set -- "${POSITIONAL[@]}" # restore unknown options
 if [[ -n $1 ]]; then
-    echo "Last line of file specified as non-opt/last argument:"
-    tail -1 "$1"
+    echo "##################">&2
+    echo "Illegal arguments: $@">&2
+    echo "##################">&2
+    echo
+    print_usage
+    exit 1
 fi
 
 if [ $NUM_MGM_NODES -lt 1 ]; then
