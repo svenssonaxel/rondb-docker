@@ -228,6 +228,11 @@ AUTOBENCH_SYS_MULTI_FILEPATH="$SYSBENCH_MULTI_DIR/autobench.conf"
 AUTOBENCH_DBT2_SINGLE_FILEPATH="$DBT2_SINGLE_DIR/autobench.conf"
 AUTOBENCH_DBT2_MULTI_FILEPATH="$DBT2_MULTI_DIR/autobench.conf"
 
+# Since we are mounting the entire benchmarking directories, these files would be 
+# overwritten if they are added via the Dockerfile.
+cp "$SCRIPT_DIR/resources/config_templates/dbt2_run_1.conf.single" "$DBT2_SINGLE_DIR/dbt2_run_1.conf"
+cp "$SCRIPT_DIR/resources/config_templates/dbt2_run_1.conf.multi" "$DBT2_MULTI_DIR/dbt2_run_1.conf"
+
 #######################
 #######################
 #######################

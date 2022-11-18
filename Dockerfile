@@ -114,27 +114,21 @@ RUN mkdir -p $LOG_DIR $SCRIPTS_DIR $BACKUP_DATA_DIR $DISK_COLUMNS_DIR
 COPY ./resources/rondb_scripts $SCRIPTS_DIR
 RUN touch $MYSQL_UNIX_PORT
 
-RUN groupadd mysql && adduser mysql --ingroup mysql
-RUN chown mysql:mysql -R .
-
-# we expect this image to be used as base image to other
+# We expect this image to be used as base image to other
 # images with additional entrypoints
 COPY ./resources/entrypoints ./docker_entrypoints/rondb_standalone
 RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
-USER mysql:mysql
+RUN groupadd mysql && adduser mysql --ingroup mysql
+
+# Creating benchmarking files/directories
 
 ENV BENCHMARKS_DIR=/home/mysql/benchmarks
 RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
     && mkdir -p sysbench_single sysbench_multi dbt2_single dbt2_multi dbt2_data
 
-# These benchmark files don't need to change, so they are not mounted
-COPY --chown=mysql:mysql \
-    ./resources/config_templates/dbt2_run_1.conf.single \
-    /home/mysql/benchmarks/dbt2_single/dbt2_run_1.conf
-COPY --chown=mysql:mysql \
-    ./resources/config_templates/dbt2_run_1.conf.multi \
-    /home/mysql/benchmarks/dbt2_multi/dbt2_run_1.conf
+RUN chown mysql:mysql -R . /home/mysql
+USER mysql:mysql
 
 ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
