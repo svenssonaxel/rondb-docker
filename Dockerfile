@@ -58,23 +58,27 @@ RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
 ENV LD_LIBRARY_PATH=$OPENSSL_ROOT/lib/:$LD_LIBRARY_PATH
 RUN ldconfig --verbose
 
-# Copying Hopsworks cloud environment
+# Copying bare minimum of Hopsworks cloud environment for now
+FROM rondb_runtime_dependencies as cloud_preparation
+RUN groupadd mysql && adduser mysql --ingroup mysql
 ENV HOPSWORK_DIR=/srv/hops
 ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
 RUN mkdir -p $RONDB_BIN_DIR
 
 # Get RonDB tarball from local path & unpack it
-FROM rondb_runtime_dependencies as local_tarball
+FROM cloud_preparation as local_tarball
 ARG RONDB_TARBALL_URI
 RUN --mount=type=bind,source=$RONDB_TARBALL_URI,target=$RONDB_TARBALL_URI \
-    tar xfz $RONDB_TARBALL_URI -C $RONDB_BIN_DIR --strip-components=1
+    tar xfz $RONDB_TARBALL_URI -C $RONDB_BIN_DIR --strip-components=1 \
+    && chown mysql:mysql -R $RONDB_BIN_DIR
 
 # Get RonDB tarball from remote url & unpack it
-FROM rondb_runtime_dependencies as remote_tarball
+FROM cloud_preparation as remote_tarball
 ARG RONDB_TARBALL_URI
 RUN wget $RONDB_TARBALL_URI -O ./temp_tarball.tar.gz \
     && tar xfz ./temp_tarball.tar.gz -C $RONDB_BIN_DIR --strip-components=1 \
-    && rm ./temp_tarball.tar.gz
+    && rm ./temp_tarball.tar.gz \
+    && chown mysql:mysql -R $RONDB_BIN_DIR
 
 FROM ${RONDB_TARBALL_LOCAL_REMOTE}_tarball
 
@@ -110,23 +114,21 @@ ENV MYSQL_UNIX_PORT=$RONDB_DATA_DIR/mysql.sock
 
 RUN mkdir -p $LOG_DIR $SCRIPTS_DIR $BACKUP_DATA_DIR $DISK_COLUMNS_DIR
 
-COPY ./resources/rondb_scripts $SCRIPTS_DIR
+COPY --chown=mysql:mysql ./resources/rondb_scripts $SCRIPTS_DIR
 RUN touch $MYSQL_UNIX_PORT
 
 # We expect this image to be used as base image to other
 # images with additional entrypoints
-COPY ./resources/entrypoints ./docker_entrypoints/rondb_standalone
+COPY --chown=mysql:mysql ./resources/entrypoints ./docker_entrypoints/rondb_standalone
 RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
-RUN groupadd mysql && adduser mysql --ingroup mysql
-
 # Creating benchmarking files/directories
-
 ENV BENCHMARKS_DIR=/home/mysql/benchmarks
 RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
     && mkdir -p sysbench_single sysbench_multi dbt2_single dbt2_multi dbt2_data
 
-RUN chown mysql:mysql -R . /home/mysql
+# Avoid changing files if they are already owned by mysql; otherwise image size doubles
+RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
 USER mysql:mysql
 
 ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
