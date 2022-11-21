@@ -34,8 +34,8 @@ RUN mkdir $DOWNLOADS_CACHE_DIR
 # we need libssl.so.1.1 & libcrypto.so.1.1 for our binaries;
 #   /usr/lib/aarch64-linux-gnu only contains libssl.so,
 #   which is from openssl-3.x;
-#   to get these libraries, we need to download openssl-1.1.1m;
-#   we don't need openssl-1.1.1m itself, only its shared libraries;
+#   to get these libraries, we need to download openssl-1.1.1;
+#   we don't need openssl-1.1.1 itself, only its shared libraries;
 #   commands are from https://linuxpip.org/install-openssl-linux/
 ENV OPENSSL_ROOT=/usr/local/ssl
 RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
