@@ -58,28 +58,27 @@ RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
 ENV LD_LIBRARY_PATH=$OPENSSL_ROOT/lib/:$LD_LIBRARY_PATH
 RUN ldconfig --verbose
 
-# Get RonDB tarball from local path
+# Copying Hopsworks cloud environment
+ENV HOPSWORK_DIR=/srv/hops
+ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
+RUN mkdir -p $RONDB_BIN_DIR
+
+# Get RonDB tarball from local path & unpack it
 FROM rondb_runtime_dependencies as local_tarball
 ARG RONDB_TARBALL_URI
-COPY $RONDB_TARBALL_URI ./temp_tarball.tar.gz
+RUN --mount=type=bind,source=$RONDB_TARBALL_URI,target=$RONDB_TARBALL_URI \
+    tar xfz $RONDB_TARBALL_URI -C $RONDB_BIN_DIR --strip-components=1
 
-# Get RonDB tarball from remote url
+# Get RonDB tarball from remote url & unpack it
 FROM rondb_runtime_dependencies as remote_tarball
 ARG RONDB_TARBALL_URI
-RUN wget $RONDB_TARBALL_URI -O ./temp_tarball.tar.gz
+RUN wget $RONDB_TARBALL_URI -O ./temp_tarball.tar.gz \
+    && tar xfz ./temp_tarball.tar.gz -C $RONDB_BIN_DIR --strip-components=1 \
+    && rm ./temp_tarball.tar.gz
 
 FROM ${RONDB_TARBALL_LOCAL_REMOTE}_tarball
 
 ARG RONDB_VERSION=21.04.6
-
-# Copying Hopsworks cloud environment
-ENV HOPSWORK_DIR=/srv/hops
-ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
-
-# Processing tarballs from previous build stage
-RUN mkdir -p $RONDB_BIN_DIR \
-    && tar xfz ./temp_tarball.tar.gz -C $RONDB_BIN_DIR --strip-components=1 \
-    && rm ./temp_tarball.tar.gz
 
 WORKDIR $HOPSWORK_DIR
 
