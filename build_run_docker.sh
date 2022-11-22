@@ -1,4 +1,20 @@
 #!/bin/bash
+# Generating RonDB clusters of variable sizes with docker compose
+# Copyright (c) 2022 Hopsworks AB and/or its affiliates.
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 ## This file does the following
 ## i. Builds the Docker image of RonDB
@@ -194,8 +210,8 @@ if [ ! -z $RUN_BENCHMARK ]; then
 fi
 
 ## Uncomment this for quicker testing
-# yes | docker container prune
-# yes | docker volume prune
+yes | docker container prune
+yes | docker volume prune
 
 FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_g${NODE_GROUPS}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
 
