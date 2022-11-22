@@ -24,8 +24,13 @@ Commands to run:
 # Beware that the local platform is linux/arm64 in this case
 ./build_run_docker.sh \
   --rondb-tarball-is-local \
-  -ruri ./rondb-21.04.9-linux-glibc2.35-arm64_v8.tar.gz \
-  -v 21.04.9 -m 1 -g 1 -r 2 -my 1 -a 1
+  --rondb-tarball-uri ./rondb-21.04.9-linux-glibc2.35-arm64_v8.tar.gz \
+  --rondb-version 21.04.9 \
+  --num-mgm-nodes 1 \
+  --node-groups 1 \
+  --replication-factor 2 \
+  --num-mysql-nodes 1 \
+  --num-api-nodes 1
 
 # Build cross-platform image (linux/arm64 here)
 docker buildx build . --platform=linux/arm64 -t rondb-standalone:21.04.6 \
@@ -123,8 +128,3 @@ It may be the case that the benchmarks require more resources than are configure
 3. Reference in ePipe as base image
     - create builder image to build ePipe itself
     - copy over ePipe binary into hopsworks/rondb
-
-## TODO
-
-- Are env files even needed in this image?
-  - Add ndb-cluster-connection-pool-nodeids as env to Dockerfile
