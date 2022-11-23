@@ -60,6 +60,7 @@ RUN ldconfig --verbose
 
 # Copying bare minimum of Hopsworks cloud environment for now
 FROM rondb_runtime_dependencies as cloud_preparation
+ARG RONDB_VERSION=21.04.6
 RUN groupadd mysql && adduser mysql --ingroup mysql
 ENV HOPSWORK_DIR=/srv/hops
 ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
@@ -81,8 +82,6 @@ RUN wget $RONDB_TARBALL_URI -O ./temp_tarball.tar.gz \
     && chown mysql:mysql -R $RONDB_BIN_DIR
 
 FROM ${RONDB_TARBALL_LOCAL_REMOTE}_tarball
-
-ARG RONDB_VERSION=21.04.6
 
 WORKDIR $HOPSWORK_DIR
 
