@@ -210,8 +210,8 @@ if [ ! -z $RUN_BENCHMARK ]; then
 fi
 
 ## Uncomment this for quicker testing
-yes | docker container prune
-yes | docker volume prune
+# yes | docker container prune
+# yes | docker volume prune
 
 FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_g${NODE_GROUPS}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
 
