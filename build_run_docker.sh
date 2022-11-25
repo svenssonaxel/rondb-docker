@@ -209,11 +209,14 @@ if [ ! -z $RUN_BENCHMARK ]; then
     fi
 fi
 
+# We use this for the docker-compose project name, which will not allow "."
+RONDB_VERSION_NO_DOT=$(echo "$RONDB_VERSION" | tr -d '.')
+
 ## Uncomment this for quicker testing
 # yes | docker container prune
 # yes | docker volume prune
 
-FILE_SUFFIX="v${RONDB_VERSION}_m${NUM_MGM_NODES}_g${NODE_GROUPS}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
+FILE_SUFFIX="v${RONDB_VERSION_NO_DOT}_m${NUM_MGM_NODES}_g${NODE_GROUPS}_r${REPLICATION_FACTOR}_my${NUM_MYSQL_NODES}_api${NUM_API_NODES}"
 
 # https://stackoverflow.com/a/246128/9068781
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
