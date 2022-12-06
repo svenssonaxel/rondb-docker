@@ -1,0 +1,85 @@
+name: Testing and Deploying Cluster
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, edited, closed]
+
+jobs:
+  integration-test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v3
+        id: rondb-image-tars
+        with:
+          path: /tmp/docker-save
+          key: docker-save-${{ hashFiles('./Dockerfile') }}
+
+      # For PRs, build with no cached image history
+      - if: steps.rondb-image-tars.outputs.cache-hit == 'true' && github.event_name != 'pull_request'
+        run: docker load --input /tmp/docker-save/rondb.tar || true
+
+      - name: Run Docker integration tests
+        run: |
+          ./build_run_docker.sh \
+            --rondb-tarball-uri https://repo.hops.works/master/rondb-21.04.9-linux-glibc2.17-x86_64.tar.gz \
+            --rondb-version 21.04.9 \
+            --num-mgm-nodes 1 \
+            --node-groups 1 \
+            --replication-factor 2 \
+            --num-mysql-nodes 2 \
+            --num-api-nodes 1 \
+            --run-benchmark sysbench_multi \
+            --detached
+
+      - name: Check if all containers are alive
+        run: |
+          docker ps
+          start=`date +%s`
+          while true; do
+              end=`date +%s`
+              runtime=$((end-start))
+              if [ $( docker container ls --filter "status=exited" | grep rondb | wc -l ) -lt 1 ]; then
+                  echo "One container is down. We can continue"
+                  docker ps
+                  exit 0
+              elif [ $runtime -gt 250 ]; then
+                  echo "The benchmarking seems to be stuck. We're aborting now."
+                  docker p
+                  exit 1
+              fi
+              sleep 2
+          done
+
+      - name: Show Docker logs
+        run: docker logs api_1
+
+      - name: Check API Exit Code
+        run: |
+          if [ $(docker inspect api_1 --format='{{.State.ExitCode}}') -ne 0 ] 
+          then
+            echo "Benchmarking failed."
+            exit 1
+          fi
+
+      - name: Save Docker image layers to cache
+        if: steps.rondb-image-tars.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/docker-save
+          docker save \
+            rondb-standalone $(docker history -q rondb-standalone | grep -v "<missing>") \
+            --output /tmp/docker-save/rondb.tar
+          ls -l /tmp/docker-save
+
+      - name: Login to Dockerhub registry
+        if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login --username hopsworks --password-stdin
+
+      - name: Push all images to Dockerhub
+        if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
+        run: |
+          docker tag rondb-standalone hopsworks/rondb-standalone
+          docker push hopsworks/rondb-standalone

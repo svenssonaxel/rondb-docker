@@ -50,6 +50,7 @@ Usage: $0
     [-rtarl     --rondb-tarball-is-local            ]
     [-lv        --volumes-in-local-dir              ]
     [-sf        --save-sample-files                 ]
+    [-d         --detached                          ]
 EOF
 }
 
@@ -72,6 +73,7 @@ NODE_GROUPS=1
 RUN_BENCHMARK=
 VOLUME_TYPE=docker
 SAVE_SAMPLE_FILES=
+DETACHED=
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -126,6 +128,10 @@ while [[ $# -gt 0 ]]; do
 
     -rtarl | --rondb-tarball-is-local)
         RONDB_TARBALL_LOCAL_REMOTE=local
+        shift # past argument
+        ;;
+    -d | --detached)
+        DETACHED="-d"
         shift # past argument
         ;;
 
@@ -730,4 +736,4 @@ fi
 # Remove previous volumes
 $DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v
 # Run fresh setup
-$DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up
+$DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up $DETACHED
