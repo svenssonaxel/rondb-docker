@@ -22,7 +22,7 @@ jobs:
       - if: steps.rondb-image-tars.outputs.cache-hit == 'true' && github.event_name != 'pull_request'
         run: docker load --input /tmp/docker-save/rondb.tar || true
 
-      - name: Run Docker integration tests
+      - name: Run docker-compose cluster with benchmarking
         run: |
           ./build_run_docker.sh \
             --rondb-tarball-uri https://repo.hops.works/master/rondb-21.04.9-linux-glibc2.17-x86_64.tar.gz \
@@ -37,18 +37,17 @@ jobs:
 
       - name: Check if all containers are alive
         run: |
-          docker ps
           start=`date +%s`
           while true; do
               end=`date +%s`
               runtime=$((end-start))
-              if [ $( docker container ls --filter "status=exited" | grep rondb | wc -l ) -lt 1 ]; then
+              if [ $( docker container ls --filter "status=exited" | grep rondb | wc -l ) -gt 0 ]; then
                   echo "One container is down. We can continue"
-                  docker ps
+                  docker container ls --filter "status=exited"
                   exit 0
               elif [ $runtime -gt 250 ]; then
                   echo "The benchmarking seems to be stuck. We're aborting now."
-                  docker p
+                  docker ps
                   exit 1
               fi
               sleep 2
