@@ -12,7 +12,8 @@ Node groups                   = 1
 Replication factor            = 2
 Number of mysql nodes         = 1
 Number of api nodes           = 1
-Run benchmark                 = 
-Volume type docker/local      = docker
+Run benchmark                 = sysbench_single
+Volume type docker/local      = local
 Save sample files             = 1
+Run detached                  = 
 
