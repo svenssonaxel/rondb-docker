@@ -22,6 +22,12 @@ jobs:
       - if: steps.rondb-image-tars.outputs.cache-hit == 'true' && github.event_name != 'pull_request'
         run: docker load --input /tmp/docker-save/rondb.tar || true
 
+      - name: Check environment permissions
+        run: |
+          ls -la
+          whoami
+          id
+
       - name: Run docker-compose cluster with benchmarking
         run: |
           ./build_run_docker.sh \
