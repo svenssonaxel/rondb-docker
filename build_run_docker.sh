@@ -658,7 +658,17 @@ fi
 echo "$BASE_DOCKER_COMPOSE_FILE" >$DOCKER_COMPOSE_FILEPATH
 echo "$CONFIG_INI" >$CONFIG_INI_FILEPATH
 
+if which docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE=docker-compose
+elif docker compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo "docker compose not installed."
+    exit 1
+fi
+
+set -x
 # Remove previous volumes
-docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v
+$DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v
 # Run fresh setup
-docker-compose -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up
+$DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" up
