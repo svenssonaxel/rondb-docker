@@ -40,6 +40,7 @@ Usage: $0
                     Options: <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>
                                                     ]
     [-rtarl     --rondb-tarball-is-local            ]
+    [-lv        --volumes-in-local-dir              ]
 EOF
 }
 
@@ -60,6 +61,7 @@ NUM_API_NODES=0
 REPLICATION_FACTOR=1
 NODE_GROUPS=1
 RUN_BENCHMARK=
+VOLUMES_DIR=
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -117,6 +119,11 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         ;;
 
+    -lv | --volumes-in-local-dir)
+        VOLUMES_DIR="$(pwd)/docker_volumes/"
+        shift # past argument
+        ;;
+
     *)                     # unknown option
         POSITIONAL+=("$1") # save it in an array for later
         shift              # past argument
@@ -137,6 +144,7 @@ echo "Replication factor            = ${REPLICATION_FACTOR}"
 echo "Number of mysql nodes         = ${NUM_MYSQL_NODES}"
 echo "Number of api nodes           = ${NUM_API_NODES}"
 echo "Run benchmark                 = ${RUN_BENCHMARK}"
+echo "Directory for volume mounts   = ${VOLUMES_DIR}"
 echo
 
 set -- "${POSITIONAL[@]}" # restore unknown options
@@ -372,6 +380,26 @@ SINGLE_API_IP=''
 MULTI_API_IPS=''
 
 VOLUMES=()
+
+add_volume_to_template() {
+    local VOLUME_NAME
+    if [ -n "$VOLUMES_DIR" ]; then
+        VOLUME_NAME="${VOLUMES_DIR}$1"
+        mkdir -p "$VOLUME_NAME"
+        if [ -n "$3" ]; then
+            for i in $(seq 64)
+            do mkdir -p "$VOLUME_NAME/$i"
+            done
+        fi
+    else
+        VOLUME_NAME="$1"
+        VOLUMES+=("$VOLUME_NAME")
+    fi
+    local volume
+    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "$2")
+    template+="$volume"
+}
+
 BASE_DOCKER_COMPOSE_FILE="version: '3.8'
 
 services:"
@@ -397,15 +425,9 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
     template+="$VOLUMES_FIELD"
     template+="$BIND_CONFIG_INI_TEMPLATE"
 
-    VOLUME_NAME="dataDir_$SERVICE_NAME"
-    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mgmd")
-    template+="$volume"
-    VOLUMES+=("$VOLUME_NAME")
+    add_volume_to_template "dataDir_$SERVICE_NAME" "mgmd"
 
-    VOLUME_NAME="logDir_$SERVICE_NAME"
-    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "log")
-    template+="$volume"
-    VOLUMES+=("$VOLUME_NAME")
+    add_volume_to_template "logDir_$SERVICE_NAME" "log"
 
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
@@ -442,15 +464,9 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
 
     template+="$VOLUMES_FIELD"
 
-    VOLUME_NAME="dataDir_$SERVICE_NAME"
-    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "ndb_data")
-    template+="$volume"
-    VOLUMES+=("$VOLUME_NAME")
+    add_volume_to_template "dataDir_$SERVICE_NAME" "ndb_data" y
 
-    VOLUME_NAME="logDir_$SERVICE_NAME"
-    volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "log")
-    template+="$volume"
-    VOLUMES+=("$VOLUME_NAME")
+    add_volume_to_template "logDir_$SERVICE_NAME" "log"
 
     BASE_DOCKER_COMPOSE_FILE+="$template"
 
@@ -483,16 +499,10 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         template+="$VOLUMES_FIELD"
         template+="$BIND_MY_CNF_TEMPLATE"
 
-        VOLUME_NAME="dataDir_$SERVICE_NAME"
-        volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysql")
-        template+="$volume"
-        VOLUMES+=("$VOLUME_NAME")
+        add_volume_to_template "dataDir_$SERVICE_NAME" "mysql"
 
         # This is for debugging
-        VOLUME_NAME="mysqlFilesDir_$SERVICE_NAME"
-        volume=$(printf "$VOLUME_DATA_DIR_TEMPLATE" "$VOLUME_NAME" "mysql-files")
-        template+="$volume"
-        VOLUMES+=("$VOLUME_NAME")
+        add_volume_to_template "mysqlFilesDir_$SERVICE_NAME" "mysql-files"
 
         # Can add the following env vars to the mysqld containers:
         # MYSQL_ROOT_PASSWORD
@@ -599,18 +609,20 @@ fi
 # Remove last semi-colon from MULTI_API_IPS
 MULTI_API_IPS=${MULTI_API_IPS%?}
 
-# Append volumes to end of file
-BASE_DOCKER_COMPOSE_FILE+="
+
+# Append volumes to end of file if docker volumes are used
+if [ -z "$VOLUMES_DIR" ]; then
+    BASE_DOCKER_COMPOSE_FILE+="
 
 volumes:"
-
-for VOLUME in "${VOLUMES[@]}"; do
-    BASE_DOCKER_COMPOSE_FILE+="
+    for VOLUME in "${VOLUMES[@]}"; do
+        BASE_DOCKER_COMPOSE_FILE+="
     $VOLUME:"
-done
+    done
 
-BASE_DOCKER_COMPOSE_FILE+="
+    BASE_DOCKER_COMPOSE_FILE+="
 "
+fi
 
 #######################
 #######################
