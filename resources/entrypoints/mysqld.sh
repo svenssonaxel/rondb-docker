@@ -74,8 +74,8 @@ echo '[Entrypoint] Database initialized'
 export MYSQLD_PARENT_PID=$$
 if [ -z $MYSQL_SETUP_APP ]; then
     echo '[Entrypoint] Not setting up app here; going straight to execution of mysqld'
-    echo "[Entrypoint] Running: $@"
-    exec "$@"
+    echo "[Entrypoint] Running: $MYSQLD_INSTRUMENTATION $@"
+    exec $MYSQLD_INSTRUMENTATION "$@"
 fi
 
 echo '[Entrypoint] Executing mysqld as daemon with no networking allowed...'
@@ -172,5 +172,5 @@ mysqladmin -uroot --password=$MYSQL_ROOT_PASSWORD shutdown --socket="$SOCKET"
 echo "[Entrypoint] Successfully shut down MySQLd"
 
 echo '[Entrypoint] MySQL init process done. Ready for start up.'
-echo "[Entrypoint] Running: $@"
-exec "$@"
+echo "[Entrypoint] Running: $MYSQLD_INSTRUMENTATION $@"
+exec $MYSQLD_INSTRUMENTATION "$@"
