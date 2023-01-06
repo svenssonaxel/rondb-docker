@@ -667,7 +667,6 @@ else
     exit 1
 fi
 
-set -x
 # Remove previous volumes
 $DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v
 # Run fresh setup
