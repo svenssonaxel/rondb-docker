@@ -494,6 +494,11 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
         template+="$command"
         # template+="$RESOURCES_SNIPPET"
 
+        # mysqld needs this, or will otherwise complain "mbind: Operation not permitted".
+        template+="
+      cap_add:
+        - SYS_NICE"
+
         # Make sure these memory boundaries are allowed in Docker settings!
         # To check whether they are being used use `docker stats`
         template+="
