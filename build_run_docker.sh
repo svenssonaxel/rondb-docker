@@ -245,11 +245,11 @@ RONDB_VERSION_NO_DOT=$(echo "$RONDB_VERSION" | tr -d '.')
 # context.
 MYSQLD_INSTRUMENTATION_INDICATOR=
 if [ -n "$MYSQLD_INSTRUMENTATION" ]; then
-    MYSQLD_INSTRUMENTATION_INDICATOR="$(echo "$MYSQLD_INSTRUMENTATION" | sha256sum | sed -r 's/^(.{8}).*$/_mi-\1/')"
+    MYSQLD_INSTRUMENTATION_INDICATOR="$(echo "$MYSQLD_INSTRUMENTATION" | sha256sum | sed -r 's/^(.{4}).*$/_mi-\1/')"
 fi
 EXTRA_PACKAGES_INDICATOR=
 if [ -n "$EXTRA_PACKAGES" ]; then
-    EXTRA_PACKAGES_INDICATOR="$(echo "$EXTRA_PACKAGES" | sha256sum | sed -r 's/^(.{8}).*$/_ep-\1/')"
+    EXTRA_PACKAGES_INDICATOR="$(echo "$EXTRA_PACKAGES" | sha256sum | sed -r 's/^(.{4}).*$/_ep-\1/')"
 fi
 
 ## Uncomment this for quicker testing
@@ -301,7 +301,7 @@ fi
 
 echo "Building RonDB Docker image for local platform"
 
-RONDB_IMAGE_NAME="rondb-standalone:$RONDB_VERSION"
+RONDB_IMAGE_NAME="rondb-standalone:$RONDB_VERSION${MYSQLD_INSTRUMENTATION_INDICATOR}${EXTRA_PACKAGES_INDICATOR}"
 docker buildx build . \
     --tag $RONDB_IMAGE_NAME \
     --build-arg RONDB_VERSION=$RONDB_VERSION \
