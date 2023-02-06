@@ -32,6 +32,13 @@ jobs:
           id
           docker context ls
           docker info
+          echo
+          getent passwd
+          echo
+          echo "getent group"
+          echo
+          getent group
+          echo
           cut -d: -f1 /etc/passwd
           groupadd mysql_dummy --gid 1000 && adduser mysql_dummy --ingroup mysql_dummy --uid 1000
           # groupadd mysql && adduser mysql --ingroup mysql
