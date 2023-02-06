@@ -35,7 +35,7 @@ jobs:
           cut -d: -f1 /etc/passwd
           groupadd mysql_dummy --gid 1000 && adduser mysql_dummy --ingroup mysql_dummy --uid 1000
           # groupadd mysql && adduser mysql --ingroup mysql
-          su mysql:mysql
+          su mysql_dummy:mysql_dummy
 
       - name: Run docker-compose cluster with benchmarking
         run: |
