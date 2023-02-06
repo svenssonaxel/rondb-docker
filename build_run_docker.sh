@@ -334,7 +334,8 @@ VOLUMES_FIELD="
       volumes:"
 
 ENV_FIELD="
-      environment:"
+      environment:
+      - HOST_GROUP_ID=$(id -g)"
 
 # We add volumes to the data dir for debugging purposes
 ENV_VAR_TEMPLATE="
@@ -463,6 +464,7 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
           reservations:
             memory: $MGMD_MEMORY_RESERVATION"
 
+    template+="$ENV_FIELD"
     template+="$VOLUMES_FIELD"
     template+="$BIND_CONFIG_INI_TEMPLATE"
 
@@ -503,6 +505,7 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
           reservations:
             memory: $NDBD_MEMORY_RESERVATION"
 
+    template+="$ENV_FIELD"
     template+="$VOLUMES_FIELD"
 
     add_volume_to_template "dataDir_$SERVICE_NAME" ndb_data yes
