@@ -25,10 +25,12 @@ jobs:
       - name: Check environment permissions
         run: |
           ls -la
+          pwd
           chmod 777 .
           ls -la
           whoami
           id
+          docker context ls
 
       - name: Run docker-compose cluster with benchmarking
         run: |

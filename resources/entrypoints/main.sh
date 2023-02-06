@@ -20,6 +20,9 @@ echo "[Entrypoint] RonDB Docker Image"
 
 echo "\$@: $@"
 
+ls -la /home/mysql/benchmarks/*
+echo "hi" > /home/mysql/benchmarks/sysbench_multi/build_prepare.log
+
 # https://stackoverflow.com/a/246128/9068781
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
