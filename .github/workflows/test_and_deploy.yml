@@ -31,6 +31,7 @@ jobs:
           whoami
           id
           docker context ls
+          docker info
 
       - name: Run docker-compose cluster with benchmarking
         run: |
