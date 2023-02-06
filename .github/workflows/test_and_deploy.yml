@@ -33,7 +33,7 @@ jobs:
           docker context ls
           docker info
           cut -d: -f1 /etc/passwd
-          groupadd mysql --gid 1000 && adduser mysql --ingroup mysql --uid 1000
+          groupadd mysql_dummy --gid 1000 && adduser mysql_dummy --ingroup mysql_dummy --uid 1000
           # groupadd mysql && adduser mysql --ingroup mysql
           su mysql:mysql
 
