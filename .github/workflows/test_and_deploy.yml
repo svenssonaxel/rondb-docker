@@ -82,7 +82,19 @@ jobs:
                   exit 0
               elif [ $runtime -gt 250 ]; then
                   echo "The benchmarking seems to be stuck. We're aborting now."
-                  docker ps
+                  docker ps -a
+                  echo === Mgmd_1 logs ===
+                  docker logs mgmd_1
+                  echo === Ndbd_1 logs ===
+                  docker logs ndbd_1
+                  echo === Ndbd_2 logs ===
+                  docker logs ndbd_2
+                  echo === Mysqld_1 logs ===
+                  docker logs mysqld_1
+                  echo === Mysqld_2 logs ===
+                  docker logs mysqld_2
+                  echo === API logs ===
+                  docker logs api_1
                   exit 1
               fi
               sleep 2
