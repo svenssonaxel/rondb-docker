@@ -178,7 +178,7 @@ print-parsed-arguments() {
     echo "Volume type docker/local                  = ${VOLUME_TYPE}"
     echo "Volume type benchmarking local/docker     = ${VOLUME_TYPE_BENCH_DIRS}"
     echo "Save sample files                         = ${SAVE_SAMPLE_FILES}"
-    echo
+    echo "Run detached                              = ${DETACHED}"
 }
 print-parsed-arguments
 

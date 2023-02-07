@@ -16,4 +16,4 @@ Run benchmark                             = sysbench_single
 Volume type docker/local                  = docker
 Volume type benchmarking local/docker     = local
 Save sample files                         = 1
-
+Run detached                              = 
