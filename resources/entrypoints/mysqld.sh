@@ -137,6 +137,9 @@ DUMMY_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | mysql
 
 if [ "$MYSQL_USER" ]; then
+    echo "Running this command now:"
+    echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;"
+
     echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | mysql
 
     # TODO: Consider placing into docker-entrypoint-initdb.d
