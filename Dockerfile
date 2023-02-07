@@ -133,15 +133,15 @@ RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
 
 # Avoid changing files if they are already owned by mysql; otherwise image size doubles
 RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
-# USER mysql:mysql
+USER mysql:mysql
 
-RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
-    --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
-    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
-    apt-get update -y \
-    && apt-get install -y sudo && \
-    sed -ri '/secure_path/d' /etc/sudoers
+# RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
+#     --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
+#     --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
+#     apt-get update -y \
+#     && apt-get install -y sudo && \
+#     sed -ri '/secure_path/d' /etc/sudoers
 
-ENTRYPOINT ["./docker_entrypoints/rondb_standalone/fix_user.sh"]
+ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
 CMD ["mysqld"]

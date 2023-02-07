@@ -60,6 +60,7 @@ jobs:
             --num-mysql-nodes 2 \
             --num-api-nodes 1 \
             --run-benchmark sysbench_multi \
+            --bench-dirs-in-volumes \
             --detached
 
       - name: Change permissions
