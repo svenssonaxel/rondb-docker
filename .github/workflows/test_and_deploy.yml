@@ -88,7 +88,13 @@ jobs:
               sleep 2
           done
 
-      - name: Show Docker logs
+      - name: Check container statuses
+        run: docker container ls
+
+      - name: Show Mysqld_1 logs
+        run: docker logs mysqld_1
+
+      - name: Show API logs
         run: docker logs api_1
 
       - name: Check API Exit Code
