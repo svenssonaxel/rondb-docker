@@ -91,6 +91,12 @@ jobs:
       - name: Check container statuses
         run: docker container ls
 
+      - name: Show Mgmd_1 logs
+        run: docker logs mgmd_1
+
+      - name: Show Ndbd_1 logs
+        run: docker logs ndbd_1
+
       - name: Show Mysqld_1 logs
         run: docker logs mysqld_1
 
