@@ -137,8 +137,7 @@ DUMMY_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | mysql
 
 if [ "$MYSQL_USER" ]; then
-    echo "Running this command now:"
-    echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;"
+    echo "[Entrypoint] MYSQL_USER is set to $MYSQL_USER"
 
     echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | mysql
 
@@ -148,9 +147,6 @@ if [ "$MYSQL_USER" ]; then
     echo "GRANT ALL PRIVILEGES ON \`sysbench%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
     echo "GRANT ALL PRIVILEGES ON \`dbt%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
     echo "GRANT ALL PRIVILEGES ON \`sbtest%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
-
-    echo "SELECT user, host FROM mysql.user;" | mysql
-
 else
     echo '[Entrypoint] Not creating custom user. MYSQL_USER and MYSQL_PASSWORD must be specified to do so.'
 fi

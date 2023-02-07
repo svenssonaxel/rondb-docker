@@ -65,7 +65,6 @@ ARG RONDB_VERSION=21.04.6
 # Using this uid & gid because they're used in GitHub Actions
 # We need to use them, otherwise we get permission errors
 RUN groupadd mysql && adduser mysql --ingroup mysql
-# RUN groupadd mysql --gid 123 && adduser mysql --ingroup mysql --uid 1001
 
 ENV HOPSWORK_DIR=/srv/hops
 ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
@@ -134,13 +133,6 @@ RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
 # Avoid changing files if they are already owned by mysql; otherwise image size doubles
 RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
 USER mysql:mysql
-
-# RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
-#     --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
-#     --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
-#     apt-get update -y \
-#     && apt-get install -y sudo && \
-#     sed -ri '/secure_path/d' /etc/sudoers
 
 ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
 EXPOSE 3306 33060 11860 1186
