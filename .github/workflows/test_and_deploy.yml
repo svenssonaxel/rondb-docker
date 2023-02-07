@@ -97,8 +97,14 @@ jobs:
       - name: Show Ndbd_1 logs
         run: docker logs ndbd_1
 
+      - name: Show Ndbd_2 logs
+        run: docker logs ndbd_2
+
       - name: Show Mysqld_1 logs
         run: docker logs mysqld_1
+
+      - name: Show Mysqld_2 logs
+        run: docker logs mysqld_2
 
       - name: Show API logs
         run: docker logs api_1
