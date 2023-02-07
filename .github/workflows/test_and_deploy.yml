@@ -56,10 +56,10 @@ jobs:
             --rondb-version 21.04.9 \
             --num-mgm-nodes 1 \
             --node-groups 1 \
-            --replication-factor 2 \
-            --num-mysql-nodes 2 \
+            --replication-factor 1 \
+            --num-mysql-nodes 1 \
             --num-api-nodes 1 \
-            --run-benchmark sysbench_multi \
+            --run-benchmark sysbench_single \
             --bench-dirs-in-volumes \
             --detached
 
