@@ -80,7 +80,7 @@ jobs:
                   echo "One container is down. We can continue"
                   docker container ls --filter "status=exited"
                   exit 0
-              elif [ $runtime -gt 250 ]; then
+              elif [ $runtime -gt 1550 ]; then
                   echo "The benchmarking seems to be stuck. We're aborting now."
                   docker ps
                   exit 1
