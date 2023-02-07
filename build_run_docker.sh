@@ -265,7 +265,7 @@ if [ $USER_ID != 1000 ]; then
 fi
 
 if [ "$VOLUME_TYPE" == "local" -a "$VOLUME_TYPE_BENCH_DIRS" == "docker" ]; then
-    echo "WARNING: It does not make sense to place benchmarking directories into volumes but mount all other directories to the locally." >&2
+    echo "WARNING: It does not make sense to place benchmarking directories into volumes but mount all other directories locally." >&2
 fi
 
 # We use this for the docker-compose project name, which will not allow "."
