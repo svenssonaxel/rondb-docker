@@ -116,22 +116,3 @@ jobs:
             echo "Benchmarking failed."
             exit 1
           fi
-
-      - name: Save Docker image layers to cache
-        if: steps.rondb-image-tars.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /tmp/docker-save
-          docker save \
-            rondb-standalone $(docker history -q rondb-standalone | grep -v "<missing>") \
-            --output /tmp/docker-save/rondb.tar
-          ls -l /tmp/docker-save
-
-      - name: Login to Dockerhub registry
-        if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
-        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login --username hopsworks --password-stdin
-
-      - name: Push all images to Dockerhub
-        if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
-        run: |
-          docker tag rondb-standalone hopsworks/rondb-standalone
-          docker push hopsworks/rondb-standalone
