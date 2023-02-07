@@ -61,11 +61,7 @@ RUN ldconfig --verbose
 # Copying bare minimum of Hopsworks cloud environment for now
 FROM rondb_runtime_dependencies as cloud_preparation
 ARG RONDB_VERSION=21.04.6
-
-# Using this uid & gid because they're used in GitHub Actions
-# We need to use them, otherwise we get permission errors
 RUN groupadd mysql && adduser mysql --ingroup mysql
-
 ENV HOPSWORK_DIR=/srv/hops
 ENV RONDB_BIN_DIR=$HOPSWORK_DIR/mysql-$RONDB_VERSION
 RUN mkdir -p $RONDB_BIN_DIR
