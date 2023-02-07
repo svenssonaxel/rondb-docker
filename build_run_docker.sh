@@ -463,7 +463,6 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
           reservations:
             memory: $MGMD_MEMORY_RESERVATION"
 
-    template+="$ENV_FIELD"
     template+="$VOLUMES_FIELD"
     template+="$BIND_CONFIG_INI_TEMPLATE"
 
@@ -504,7 +503,6 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
           reservations:
             memory: $NDBD_MEMORY_RESERVATION"
 
-    template+="$ENV_FIELD"
     template+="$VOLUMES_FIELD"
 
     # We add volumes to the data dir for debugging purposes
@@ -635,7 +633,7 @@ if [ $NUM_API_NODES -gt 0 ]; then
         fi
 
         # If we are using volumes for the benchmarking directories, we have to mount these files single-handedly.
-        # They will then be available inside the volumes as well.
+        # They will then also be available inside the volumes.
         if [ "$VOLUME_TYPE_BENCH_DIRS" == "docker" ]; then
             template+="$BIND_DBT2_SINGLE_CONF_TEMPLATE"
             template+="$BIND_DBT2_MULTI_CONF_TEMPLATE"
@@ -669,7 +667,7 @@ fi
 MULTI_API_IPS=${MULTI_API_IPS%?}
 
 # Append volumes to end of file if docker volumes are used
-if [ "$VOLUME_TYPE" == docker ]; then
+if [ "$VOLUME_TYPE" == docker -o "$VOLUME_TYPE_BENCH_DIRS" == docker ]; then
     BASE_DOCKER_COMPOSE_FILE+="
 
 volumes:"
