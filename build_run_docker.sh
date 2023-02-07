@@ -610,7 +610,7 @@ if [ $NUM_API_NODES -gt 0 ]; then
             # Added extra sleep for mysqlds; may have to increase this
             command=$(printf "$COMMAND_TEMPLATE" ">
           bash -c \"ndb_waiter --ndb-connectstring=$MGM_CONNECTION_STRING &&
-                    sleep 60 &&
+                    sleep 100 &&
                     /srv/hops/mysql/bin/mysql -h mysqld_1 --protocol=tcp --port=3306 --user=mysql -p'Abc123?e' -e 'create database sbtest_0' &&
                     bench_run.sh --verbose --default-directory $BENCH_DIR/$RUN_BENCHMARK $GENERATE_DBT2_DATA_FLAG\"")
         fi
