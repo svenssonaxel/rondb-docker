@@ -12,15 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/cache@v3
-        id: rondb-image-tars
-        with:
-          path: /tmp/docker-save
-          key: docker-save-${{ hashFiles('./Dockerfile') }}
+      # - uses: actions/cache@v3
+      #   id: rondb-image-tars
+      #   with:
+      #     path: /tmp/docker-save
+      #     key: docker-save-${{ hashFiles('./Dockerfile') }}
 
-      # For PRs, build with no cached image history
-      - if: steps.rondb-image-tars.outputs.cache-hit == 'true' && github.event_name != 'pull_request'
-        run: docker load --input /tmp/docker-save/rondb.tar || true
+      # # For PRs, build with no cached image history
+      # - if: steps.rondb-image-tars.outputs.cache-hit == 'true' && github.event_name != 'pull_request'
+      #   run: docker load --input /tmp/docker-save/rondb.tar || true
 
       - name: Run Docker Compose cluster with benchmarking
         run: |
@@ -68,15 +68,18 @@ jobs:
             exit 1
           fi
 
-      # TODO: Figure out how to include mounted caches in tarballs as well; build is currently not accelerated
-      - name: Save Docker image layers to cache
-        if: steps.rondb-image-tars.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /tmp/docker-save
-          docker save \
-            rondb-standalone $(docker history -q rondb-standalone | grep -v "<missing>") \
-            --output /tmp/docker-save/rondb.tar
-          ls -l /tmp/docker-save
+      # TODO: Figure out how to include mounted build caches in tarballs as well.
+      #       Since we use these quite intensely, just loading image caches
+      #       does not speed up building, but rather slows it down.
+
+      # - name: Save Docker image layers to cache
+      #   if: steps.rondb-image-tars.outputs.cache-hit != 'true'
+      #   run: |
+      #     mkdir -p /tmp/docker-save
+      #     docker save \
+      #       rondb-standalone $(docker history -q rondb-standalone | grep -v "<missing>") \
+      #       --output /tmp/docker-save/rondb.tar
+      #     ls -l /tmp/docker-save
 
       - name: Login to Dockerhub registry
         if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
