@@ -108,6 +108,18 @@ It may be the case that the benchmarks require more resources than are configure
 
 ***Note***: Benchmarking RonDB with a docker-compose setup on a single machine may not bring optimal performance results. This is because both the mysqlds and the ndbmtds (multi-threaded data nodes) scale in performance with more CPUs. In a production setting, each of these programs would be deployed on their own VM, whereby mysqlds and ndbmtds will scale linearly with up to 32 cores. The possibility of benchmarking was added here to give the user an introduction of benchmarking RonDB without needing to spin up a cluster with VMs.
 
+## Permission Problems when mounting local files
+
+By default, we mount all benchmarking directories from the host filesystem, so that the results can be easily viewed locally. However, when not running on a Mac and running with uid:gid 1000:1000, one may run into permission problems when the benchmarking script attempts to write into these directories. We use UID/GID 1000:1000 (mysql:mysql) in the image because it mimics the cloud environment that we usually operate in at Hopsworks. Also, if we used root:root, the container could create files that a non-root host user may not be able to delete anymore. We considered using dynamic arguments as UID/GID, but since we use this Dockerfile in our CI to upload images to Dockerhub, and we did not want arbitrary UID/GIDs in our public images, we did not go along this route.
+
+As a simple workaround, we decided to give the user the option to place benchmarking directories into volumes instead. This can be done by using the following flag and it is also what we use in our CI now:
+
+```bash
+./build_run_docker.sh <other args> --bench-dirs-in-volumes
+```
+
+Also, be careful ***not*** to set the flag `--volumes-in-local-dir` if you are facing these problems. This flag refers to log & data directories.
+
 ## Goals of this repository
 
 1. Create an image with RonDB installed "hopsworks/rondb-standalone:21.04.9"
