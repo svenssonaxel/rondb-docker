@@ -54,20 +54,11 @@ jobs:
               sleep 2
           done
 
-      - name: Check container statuses
-        run: docker container ls
-
-      - name: Show Mgmd_1 logs
-        run: docker logs mgmd_1
-
-      - name: Show Ndbd_1 logs
-        run: docker logs ndbd_1
-
-      - name: Show Mysqld_1 logs
-        run: docker logs mysqld_1
-
-      - name: Show API logs
-        run: docker logs api_1
+      - run: docker container ls
+      - run: docker logs mgmd_1
+      - run: docker logs ndbd_1
+      - run: docker logs mysqld_1
+      - run: docker logs api_1
 
       - name: Check API Exit Code
         run: |
@@ -77,6 +68,7 @@ jobs:
             exit 1
           fi
 
+      # TODO: Figure out how to include mounted caches in tarballs as well; build is currently not accelerated
       - name: Save Docker image layers to cache
         if: steps.rondb-image-tars.outputs.cache-hit != 'true'
         run: |
