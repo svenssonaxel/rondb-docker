@@ -123,7 +123,6 @@ RUN touch $MYSQL_UNIX_PORT
 # We expect this image to be used as base image to other
 # images with additional entrypoints
 COPY --chown=mysql:mysql ./resources/entrypoints ./docker_entrypoints/rondb_standalone
-RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
 # Creating benchmarking files/directories
 ENV BENCHMARKS_DIR=/home/mysql/benchmarks

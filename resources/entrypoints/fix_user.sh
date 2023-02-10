@@ -23,5 +23,4 @@ usermod -g $HOST_GROUP_ID mysql  # Overwrite primary group
 usermod -a -G mysql mysql  # Append secondary group
 
 ls -la ./docker_entrypoints/rondb_standalone
-chmod +x ./docker_entrypoints/rondb_standalone/main.sh
 sudo -E -u mysql "$(pwd)/docker_entrypoints/rondb_standalone/main.sh" "$@"
