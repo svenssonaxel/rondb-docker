@@ -178,7 +178,7 @@ print-parsed-arguments
 set -- "${POSITIONAL[@]}" # restore unknown options
 if [[ -n $1 ]]; then
     echo "##################" >&2
-    echo "Illegal arguments: $@" >&2
+    echo "Illegal arguments: $*" >&2
     echo "##################" >&2
     echo
     print_usage
@@ -341,9 +341,8 @@ RONDB_DOCKER_COMPOSE_TEMPLATE="
 VOLUMES_FIELD="
       volumes:"
 
-# We add volumes to the data dir for debugging purposes
 VOLUME_TEMPLATE="
-      - type: bind
+      - type: %s
         source: %s
         target: %s"
 
@@ -353,21 +352,6 @@ ENV_FIELD="
 ENV_VAR_TEMPLATE="
       - %s=%s"
 
-# Bind config.ini to mgmd containers
-BIND_CONFIG_INI_TEMPLATE="$(printf "$VOLUME_TEMPLATE" "$CONFIG_INI_FILEPATH" "$DATA_DIR/config.ini")"
-
-# Bind my.cnf to mysqld containers
-BIND_MY_CNF_TEMPLATE="$(printf "$VOLUME_TEMPLATE" "$MY_CNF_FILEPATH" "$DATA_DIR/my.cnf")"
-
-### Bind benchmarking directories to api containers ###
-
-BIND_SYS_SINGLE_DIR="$(printf "$VOLUME_TEMPLATE" "$SYSBENCH_SINGLE_DIR" "/home/mysql/benchmarks/sysbench_single")"
-
-BIND_SYS_MULTI_DIR="$(printf "$VOLUME_TEMPLATE" "$SYSBENCH_MULTI_DIR" "/home/mysql/benchmarks/sysbench_multi")"
-
-BIND_DBT2_SINGLE_DIR="$(printf "$VOLUME_TEMPLATE" "$DBT2_SINGLE_DIR" "/home/mysql/benchmarks/dbt2_single")"
-
-BIND_DBT2_MULTI_DIR="$(printf "$VOLUME_TEMPLATE" "$DBT2_MULTI_DIR" "/home/mysql/benchmarks/dbt2_multi")"
 
 COMMAND_TEMPLATE="
       command: %s"
@@ -420,11 +404,17 @@ add_volume_to_template() {
                 mkdir -p "$VOLUME_DIR/$i"
             done
         fi
-        template+="$(printf "$VOLUME_TEMPLATE" "$VOLUME_DIR" "$TARGET_DIR_PATH")"
+        template+="$(printf "$VOLUME_TEMPLATE" bind "$VOLUME_DIR" "$TARGET_DIR_PATH")"
     else
         VOLUMES+=("$VOLUME_NAME")
-        template+="$(printf "$VOLUME_TEMPLATE" "$VOLUME_NAME" "$TARGET_DIR_PATH")"
+        template+="$(printf "$VOLUME_TEMPLATE" volume "$VOLUME_NAME" "$TARGET_DIR_PATH")"
     fi
+}
+
+# Add templated volume to `template` variable. Will always bind local file
+# irrespective of CLI argument `-lv`.
+add_file_to_template() {
+    template+="$(printf "$VOLUME_TEMPLATE" bind "$1" "$2")"
 }
 
 # Adding the repo VERSION for easier reference in the documentation
@@ -452,9 +442,7 @@ for CONTAINER_NUM in $(seq $NUM_MGM_NODES); do
             memory: $MGMD_MEMORY_RESERVATION"
 
     template+="$VOLUMES_FIELD"
-    template+="$BIND_CONFIG_INI_TEMPLATE"
-
-    # We add volumes to the data dir for debugging purposes
+    add_file_to_template "$CONFIG_INI_FILEPATH" "$DATA_DIR/config.ini"
     add_volume_to_template "dataDir_$SERVICE_NAME" "$DATA_DIR/mgmd" no
     add_volume_to_template "logDir_$SERVICE_NAME" "$DATA_DIR/log" no
 
@@ -496,8 +484,6 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
             memory: $NDBD_MEMORY_RESERVATION"
 
     template+="$VOLUMES_FIELD"
-
-    # We add volumes to the data dir for debugging purposes
     add_volume_to_template "dataDir_$SERVICE_NAME" "$DATA_DIR/ndb_data" yes
     add_volume_to_template "logDir_$SERVICE_NAME" "$DATA_DIR/log" no
 
@@ -539,11 +525,8 @@ if [ $NUM_MYSQL_NODES -gt 0 ]; then
             memory: $MYSQLD_MEMORY_RESERVATION"
 
         template+="$VOLUMES_FIELD"
-        template+="$BIND_MY_CNF_TEMPLATE"
-
-        # We add volumes to the data dir for debugging purposes
+        add_file_to_template "$MY_CNF_FILEPATH" "$DATA_DIR/my.cnf"
         add_volume_to_template "dataDir_$SERVICE_NAME" "$DATA_DIR/mysql" no
-        # This is for debugging
         add_volume_to_template "mysqlFilesDir_$SERVICE_NAME" "$DATA_DIR/mysql-files" no
 
         # Can add the following env vars to the mysqld containers:
@@ -632,13 +615,13 @@ if [ $NUM_API_NODES -gt 0 ]; then
 
         # If we are using volumes for the benchmarking directories, we have to mount these files single-handedly.
         # They will then also be available inside the volumes.
-        if [ "$VOLUME_TYPE_BENCH_DIRS" == "docker" ]; then
-            template+="$BIND_DBT2_SINGLE_CONF_TEMPLATE"
-            template+="$BIND_DBT2_MULTI_CONF_TEMPLATE"
-            template+="$BIND_AUTOBENCH_SYS_SINGLE_TEMPLATE"
-            template+="$BIND_AUTOBENCH_SYS_MULTI_TEMPLATE"
-            template+="$BIND_AUTOBENCH_DBT2_SINGLE_TEMPLATE"
-            template+="$BIND_AUTOBENCH_DBT2_MULTI_TEMPLATE"
+        if [ "$VOLUME_TYPE" == "docker" ]; then
+            add_file_to_template "$DBT2_CONF_SINGLE_FILEPATH" "$BENCH_DIR/dbt2_single/dbt2_run_1.conf"
+            add_file_to_template "$DBT2_CONF_MULTI_FILEPATH" "$BENCH_DIR/dbt2_multi/dbt2_run_1.conf"
+            add_file_to_template "$AUTOBENCH_SYS_SINGLE_FILEPATH" "$BENCH_DIR/sysbench_single/autobench.conf"
+            add_file_to_template "$AUTOBENCH_SYS_MULTI_FILEPATH" "$BENCH_DIR/sysbench_multi/autobench.conf"
+            add_file_to_template "$AUTOBENCH_DBT2_SINGLE_FILEPATH" "$BENCH_DIR/dbt2_single/autobench.conf"
+            add_file_to_template "$AUTOBENCH_DBT2_MULTI_FILEPATH" "$BENCH_DIR/dbt2_multi/autobench.conf"
         fi
 
         template+="$ENV_FIELD"
@@ -745,6 +728,11 @@ else
     echo "docker compose not installed."
     exit 1
 fi
+
+# Make directories accessible by group members. This is used as a workaround
+# since the local (host) user likely has a different UID from the user in the
+# docker container.
+chmod g=u -R "$AUTOGENERATED_FILES_DIR"
 
 # Remove previous volumes
 $DOCKER_COMPOSE -f $DOCKER_COMPOSE_FILEPATH -p "rondb_$FILE_SUFFIX" down -v

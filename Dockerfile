@@ -132,6 +132,6 @@ RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
 # Avoid changing files if they are already owned by mysql; otherwise image size doubles
 RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
 
-ENTRYPOINT ["./docker_entrypoints/rondb_standalone/fix_user.sh"]
+ENTRYPOINT ["./docker_entrypoints/rondb_standalone/entrypoint.sh"]
 EXPOSE 3306 33060 11860 1186
 CMD ["mysqld"]

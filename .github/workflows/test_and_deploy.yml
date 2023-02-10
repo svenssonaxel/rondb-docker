@@ -33,6 +33,7 @@ jobs:
             --num-mysql-nodes 1 \
             --num-api-nodes 1 \
             --run-benchmark sysbench_single \
+            --volumes-in-local-dir \
             --detached
 
       - name: Check if all containers are alive
