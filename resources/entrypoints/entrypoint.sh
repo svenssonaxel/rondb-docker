@@ -8,16 +8,16 @@ echo "[Entrypoint] RonDB Docker Image"
 # as mysql inside the container. In order for both users to be able to read and
 # write in the mounted volumes, we add mysql to a group with the same GID as the
 # host user's group.
-if [ $(getent group $HOST_GROUP_ID) ]; then
+if [ "$(getent group "$HOST_GROUP_ID")" ]; then
 	echo "group $HOST_GROUP_ID exists."
 else
 	echo "group $HOST_GROUP_ID does not exist."
-	addgroup --gid $HOST_GROUP_ID host_group_dummy
+	addgroup --gid "$HOST_GROUP_ID" host_group_dummy
 fi
 
 # We change mysql's initial login group to that of the host user. This is so
 # that files created by mysql will belong to this group.
-usermod -g $HOST_GROUP_ID mysql
+usermod -g "$HOST_GROUP_ID" mysql
 
 # The original mysql group is added back as a supplementary group.
 usermod -a -G mysql mysql

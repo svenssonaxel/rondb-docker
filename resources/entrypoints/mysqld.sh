@@ -32,7 +32,7 @@ _get_config() {
 
 # Check if entrypoint (and the container) is running as root
 # Important: Distinguish between MYSQLD_USER and MYSQL_USER
-if [ $(id --user) = "0" ]; then
+if [ "$(id --user)" = "0" ]; then
     echo "[entrypoints/mysqld.sh] We are running as root; setting MYSQLD_USER to 'mysql'"
     is_root=1
     install_devnull="install /dev/null -m0600 -omysql -gmysql"
@@ -46,8 +46,8 @@ fi
 # Make sure that "--defaults-file" is always run as second argument
 # Otherwise there is a risk that it might not be read
 shift
-set -- mysqld --defaults-file=$RONDB_DATA_DIR/my.cnf --user=$MYSQLD_USER "$@"
-echo "[entrypoints/mysqld.sh] \$@: $@"
+set -- mysqld --defaults-file="$RONDB_DATA_DIR/my.cnf" --user="$MYSQLD_USER" "$@"
+echo "[entrypoints/mysqld.sh] \$@: $*"
 
 # Test that the server can start. We redirect stdout to /dev/null so
 # only the error messages are left.
@@ -72,9 +72,9 @@ echo '[entrypoints/mysqld.sh] Initializing database...'
 echo '[entrypoints/mysqld.sh] Database initialized'
 
 export MYSQLD_PARENT_PID=$$
-if [ -z $MYSQL_SETUP_APP ]; then
+if [ -z "$MYSQL_SETUP_APP" ]; then
     echo '[entrypoints/mysqld.sh] Not setting up app here; going straight to execution of mysqld'
-    echo "[entrypoints/mysqld.sh] Running: $@"
+    echo "[entrypoints/mysqld.sh] Running: $*"
     exec "$@"
 fi
 
@@ -107,7 +107,7 @@ fi
 # If the password variable is a filename we use the contents of the file. We
 # read this first to make sure that a proper error is generated for empty files.
 if [ -f "$MYSQL_ROOT_PASSWORD" ]; then
-    MYSQL_ROOT_PASSWORD="$(cat $MYSQL_ROOT_PASSWORD)"
+    MYSQL_ROOT_PASSWORD="$(cat "$MYSQL_ROOT_PASSWORD")"
     if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
         echo >&2 '[entrypoints/mysqld.sh] Empty MYSQL_ROOT_PASSWORD file specified.'
         exit 1
@@ -122,7 +122,7 @@ fi
 # Since networking is not permitted for this mysql server, we have to use a socket to connect to it
 # "SET @@SESSION.SQL_LOG_BIN=0;" is required for products like group replication to work properly
 DUMMY_ROOT_PASSWORD=
-function mysql() { command mysql -uroot -hlocalhost --password=$DUMMY_ROOT_PASSWORD --protocol=socket --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;"; }
+function mysql() { command mysql -uroot -hlocalhost --password="$DUMMY_ROOT_PASSWORD" --protocol=socket --socket="$SOCKET" --init-command="SET @@SESSION.SQL_LOG_BIN=0;"; }
 echo '[entrypoints/mysqld.sh] Overwrote the mysql client command for this script'
 
 echo '[entrypoints/mysqld.sh] Changing the root user password'
@@ -136,11 +136,12 @@ DUMMY_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 # Benchmarking table; all other tables will be created by the benchmakrs themselves
 echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | mysql
 
+# shellcheck disable=SC2153
 if [ "$MYSQL_USER" ]; then
     echo "Running this command now:"
-    echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;"
+    echo "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD' ;"
 
-    echo "CREATE USER '"$MYSQL_USER"'@'%' IDENTIFIED BY '"$MYSQL_PASSWORD"' ;" | mysql
+    echo "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD' ;" | mysql
 
     # TODO: Consider placing into docker-entrypoint-initdb.d
     # Grant MYSQL_USER rights to all benchmarking databases
@@ -170,9 +171,9 @@ done
 # When using a local socket, mysqladmin shutdown will only complete when the
 # server is actually down.
 echo '[entrypoints/mysqld.sh] Shutting down MySQLd via mysqladmin...'
-mysqladmin -uroot --password=$MYSQL_ROOT_PASSWORD shutdown --socket="$SOCKET"
+mysqladmin -uroot --password="$MYSQL_ROOT_PASSWORD" shutdown --socket="$SOCKET"
 echo "[entrypoints/mysqld.sh] Successfully shut down MySQLd"
 
 echo '[entrypoints/mysqld.sh] MySQL init process done. Ready for start up.'
-echo "[entrypoints/mysqld.sh] Running: $@"
+echo "[entrypoints/mysqld.sh] Running: $*"
 exec "$@"

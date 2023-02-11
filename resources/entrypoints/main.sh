@@ -41,7 +41,7 @@ if [ "$1" = 'mysqld' ]; then
 	export UMASK=0660
 	export UMASK_DIR=0770
 
-	$SCRIPT_DIR/mysqld.sh "$@"
+	"$SCRIPT_DIR/mysqld.sh" "$@"
 else
 	if [ -n "$MYSQL_INITIALIZE_ONLY" ]; then
 		echo "[entrypoints/main.sh] MySQL already initialized and MYSQL_INITIALIZE_ONLY is set, exiting without starting MySQL..."
@@ -58,7 +58,7 @@ else
 	set -- "$@" --nodaemon
 	if [ "$1" == "ndb_mgmd" ]; then
 		echo "[entrypoints/main.sh] Starting ndb_mgmd"
-		set -- "$@" -f $RONDB_DATA_DIR/config.ini --configdir=$RONDB_DATA_DIR/log
+		set -- "$@" -f "$RONDB_DATA_DIR/config.ini" --configdir="$RONDB_DATA_DIR/log"
 	elif [ "$1" == "ndbmtd" ]; then
 
 		# ndbmtd has several hard-coded file creation modes that cannot
@@ -70,7 +70,7 @@ else
 		while true; do
 			# Find all files owned by the current user, print their
 			# modestring and path, null-terminated.
-			find /srv/hops/mysql-cluster -user $USER -printf '%m %p\0' |
+			find /srv/hops/mysql-cluster -user "$USER" -printf '%m %p\0' |
 			# Remove all null-terminated items that begin with two
 			# equal characters (where the group's permissions
 			# already equals the user's) and then remove the
