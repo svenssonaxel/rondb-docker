@@ -36,7 +36,7 @@ jobs:
             --volumes-in-local-dir \
             --detached
 
-      - name: Check if all containers are alive
+      - name: Wait for one container exit or timeout
         run: |
           start=`date +%s`
           while true; do
@@ -60,9 +60,18 @@ jobs:
       - run: docker logs mysqld_1
       - run: docker logs api_1
 
+      # At this point we only know that one container has exited. We want to
+      # check whether the API container has exited with exit code 0. We need
+      # both status and exit code to do so, since docker reports exit code 0
+      # for running containers.
       - name: Check API Exit Code
         run: |
-          if [ $(docker inspect api_1 --format='{{.State.ExitCode}}') -ne 0 ] 
+          if [ "$(docker inspect api_1 --format='{{.State.Status}}')" != "exited" ]
+          then
+            echo "Some container other than api_1 exited unexpectedly."
+            docker ps -a
+            exit 1
+          elif [ "$(docker inspect api_1 --format='{{.State.ExitCode}}')" != "0" ]
           then
             echo "Benchmarking failed."
             exit 1
