@@ -61,6 +61,8 @@ else
 		set -- "$@" -f "$RONDB_DATA_DIR/config.ini" --configdir="$RONDB_DATA_DIR/log"
 	elif [ "$1" == "ndbmtd" ]; then
 
+            exit 77
+
 		# ndbmtd has several hard-coded file creation modes that cannot
 		# be configured. Permissions can be removed from such hard-coded
 		# modes using umask, but there is no way to add permissions to
