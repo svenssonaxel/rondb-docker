@@ -92,5 +92,6 @@ else
 	elif [ "$1" == "ndb_mgm" ]; then
 		echo "[entrypoints/main.sh] Starting ndb_mgm"
 	fi
-	exec "$@"
+	sleep 3600
+        exit 0
 fi
