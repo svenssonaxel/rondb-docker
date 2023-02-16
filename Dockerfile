@@ -23,9 +23,13 @@ RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
     apt-get update -y \
     && apt-get install -y wget tar gzip \
     libncurses5 libnuma-dev \
-    bc
+    bc \
+    sudo
     # bc is required by dbt2
     # libncurses5 & libnuma-dev are required for x86 only
+    # sudo is required in the entrypoint
+# Let PATH survive through sudo
+RUN sed -ri '/secure_path/d' /etc/sudoers
 
 # Creating a cache dir for downloads to avoid redownloading
 ENV DOWNLOADS_CACHE_DIR=/tmp/downloads
@@ -119,7 +123,6 @@ RUN touch $MYSQL_UNIX_PORT
 # We expect this image to be used as base image to other
 # images with additional entrypoints
 COPY --chown=mysql:mysql ./resources/entrypoints ./docker_entrypoints/rondb_standalone
-RUN chmod +x ./docker_entrypoints/rondb_standalone/*
 
 # Creating benchmarking files/directories
 ENV BENCHMARKS_DIR=/home/mysql/benchmarks
@@ -128,8 +131,7 @@ RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
 
 # Avoid changing files if they are already owned by mysql; otherwise image size doubles
 RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
-USER mysql:mysql
 
-ENTRYPOINT ["./docker_entrypoints/rondb_standalone/main.sh"]
+ENTRYPOINT ["./docker_entrypoints/rondb_standalone/entrypoint.sh"]
 EXPOSE 3306 33060 11860 1186
 CMD ["mysqld"]
