@@ -6,34 +6,27 @@ on:
       - main
     types: [opened, synchronize, reopened, edited, closed]
 
+env:
+  RONDB_VERSION_LTS: 21.04.10
+  RONDB_VERSION_STABLE: 22.10.1
+
 jobs:
   integration-test-and-package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      # - uses: actions/cache@v3
-      #   id: rondb-image-tars
-      #   with:
-      #     path: /tmp/docker-save
-      #     key: docker-save-${{ hashFiles('./Dockerfile') }}
-
-      # # For PRs, build with no cached image history
-      # - if: steps.rondb-image-tars.outputs.cache-hit == 'true' && github.event_name != 'pull_request'
-      #   run: docker load --input /tmp/docker-save/rondb.tar || true
-
-      - name: Run Docker Compose cluster with benchmarking
+      - name: Build and run Docker Compose cluster with benchmarking for RONDB_VERSION_LTS
         run: |
           ./build_run_docker.sh \
-            --rondb-tarball-uri https://repo.hops.works/master/rondb-21.04.9-linux-glibc2.17-x86_64.tar.gz \
-            --rondb-version 21.04.9 \
+            --rondb-tarball-uri https://repo.hops.works/master/rondb-$RONDB_VERSION_LTS-linux-glibc2.17-x86_64.tar.gz \
+            --rondb-version $RONDB_VERSION_LTS \
             --num-mgm-nodes 1 \
             --node-groups 1 \
             --replication-factor 1 \
             --num-mysql-nodes 1 \
             --num-api-nodes 1 \
             --run-benchmark sysbench_single \
-            --volumes-in-local-dir \
             --detached
 
       - name: Wait for one container exit or timeout
@@ -77,25 +70,77 @@ jobs:
             exit 1
           fi
 
-      # TODO: Figure out how to include mounted build caches in tarballs as well.
-      #       Since we use these quite intensely, just loading image caches
-      #       does not speed up building, but rather slows it down.
-
-      # - name: Save Docker image layers to cache
-      #   if: steps.rondb-image-tars.outputs.cache-hit != 'true'
-      #   run: |
-      #     mkdir -p /tmp/docker-save
-      #     docker save \
-      #       rondb-standalone $(docker history -q rondb-standalone | grep -v "<missing>") \
-      #       --output /tmp/docker-save/rondb.tar
-      #     ls -l /tmp/docker-save
-
-      - name: Login to Dockerhub registry
+      - name: Login to Dockerhub
+        uses: docker/login-action@v2
         if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
-        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login --username hopsworks --password-stdin
+        with:
+          username: hopsworks
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push all images to Dockerhub
+      - name: Build AMD64 image for RONDB_VERSION_STABLE
         if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
         run: |
-          docker tag rondb-standalone hopsworks/rondb-standalone
-          docker push hopsworks/rondb-standalone
+          docker buildx build . \
+              --tag rondb-standalone:$RONDB_VERSION_STABLE \
+              --build-arg RONDB_VERSION=$RONDB_VERSION_STABLE \
+              --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \
+              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_STABLE-linux-glibc2.17-x86_64.tar.gz
+      
+      - name: Push AMD64 images to Dockerhub
+        if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
+        run: |
+          docker tag rondb-standalone:$RONDB_VERSION_LTS hopsworks/rondb-standalone:$RONDB_VERSION_LTS
+          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
+          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:latest
+          docker push hopsworks/rondb-standalone:$RONDB_VERSION_LTS
+          docker push hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
+          docker push hopsworks/rondb-standalone:latest
+
+  build-and-push-ARM64:
+    runs-on: ubuntu-latest
+    if: github.repository == 'logicalclocks/rondb-docker' && github.event.pull_request.merged == true
+    needs: [integration-test-and-package]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@v2
+        with:
+          username: hopsworks
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # We're skipping the benchmarking on ARM64 as we assume this will be run on a regular basis
+      # during development. ARM64 images are only for development anyways. It is more important to add
+      # all types of benchmarking to the tests.
+      - name: Build ARM64 image for RONDB_VERSION_LTS
+        run: |
+          docker buildx build . \
+              --tag rondb-standalone:$RONDB_VERSION_LTS \
+              --platform=linux/arm64 \
+              --build-arg RONDB_VERSION=$RONDB_VERSION_LTS \
+              --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \
+              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_LTS-linux-glibc2.35-arm64_v8.tar.gz
+      
+      - name: Build ARM64 image for RONDB_VERSION_STABLE
+        run: |
+          docker buildx build . \
+              --tag rondb-standalone:$RONDB_VERSION_STABLE \
+              --platform=linux/arm64 \
+              --build-arg RONDB_VERSION=$RONDB_VERSION_STABLE \
+              --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \
+              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_STABLE-linux-glibc2.35-arm64_v8.tar.gz
+      
+      - name: Push ARM64 images to Dockerhub
+        run: |
+          docker tag rondb-standalone:$RONDB_VERSION_LTS hopsworks/rondb-standalone:$RONDB_VERSION_LTS
+          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
+          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:latest
+          docker push hopsworks/rondb-standalone:$RONDB_VERSION_LTS
+          docker push hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
+          docker push hopsworks/rondb-standalone:latest
