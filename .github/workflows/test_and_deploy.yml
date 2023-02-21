@@ -9,6 +9,8 @@ on:
 env:
   RONDB_VERSION_LTS: 21.04.10
   RONDB_VERSION_STABLE: 22.10.1
+  ARM_IMAGE_NAME: rondb-standalone-arm64
+  AMD_IMAGE_NAME: rondb-standalone-amd64
 
 jobs:
   integration-test-and-package:
@@ -85,21 +87,20 @@ jobs:
               --build-arg RONDB_VERSION=$RONDB_VERSION_STABLE \
               --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \
               --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_STABLE-linux-glibc2.17-x86_64.tar.gz
-      
+
       - name: Push AMD64 images to Dockerhub
         if: github.repository == 'logicalclocks/rondb-docker' && github.ref_name == 'main'
         run: |
-          docker tag rondb-standalone:$RONDB_VERSION_LTS hopsworks/rondb-standalone:$RONDB_VERSION_LTS
-          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
-          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:latest
-          docker push hopsworks/rondb-standalone:$RONDB_VERSION_LTS
-          docker push hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
-          docker push hopsworks/rondb-standalone:latest
+          docker tag rondb-standalone:$RONDB_VERSION_LTS hopsworks/$AMD_IMAGE_NAME:$RONDB_VERSION_LTS
+          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/$AMD_IMAGE_NAME:$RONDB_VERSION_STABLE
+          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/$AMD_IMAGE_NAME:latest
+          docker push hopsworks/$AMD_IMAGE_NAME:$RONDB_VERSION_LTS
+          docker push hopsworks/$AMD_IMAGE_NAME:$RONDB_VERSION_STABLE
+          docker push hopsworks/$AMD_IMAGE_NAME:latest
 
   build-and-push-ARM64:
     runs-on: ubuntu-latest
     if: github.repository == 'logicalclocks/rondb-docker' && github.ref_name == 'main'
-    needs: [integration-test-and-package]
     steps:
       - uses: actions/checkout@v3
 
@@ -118,29 +119,53 @@ jobs:
       # We're skipping the benchmarking on ARM64 as we assume this will be run on a regular basis
       # during development. ARM64 images are only for development anyways. It is more important to add
       # all types of benchmarking to the tests.
-      - name: Build ARM64 image for RONDB_VERSION_LTS
+      - name: Build and push ARM64 image for RONDB_VERSION_LTS
         run: |
           docker buildx build . \
-              --tag rondb-standalone:$RONDB_VERSION_LTS \
+              --tag hopsworks/$ARM_IMAGE_NAME:$RONDB_VERSION_LTS \
               --platform=linux/arm64 \
+              --output type=registry \
               --build-arg RONDB_VERSION=$RONDB_VERSION_LTS \
               --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \
-              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_LTS-linux-glibc2.35-arm64_v8.tar.gz
-      
-      - name: Build ARM64 image for RONDB_VERSION_STABLE
+              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_LTS-linux-glibc2.35-arm64_v8.tar.gz \
+              --cache-to type=registry,ref=hopsworks/rondb-standalone-cache,mode=max \
+              --cache-from type=registry,ref=hopsworks/rondb-standalone-cache,mode=max
+
+      - name: Build and push ARM64 image for RONDB_VERSION_STABLE
         run: |
           docker buildx build . \
-              --tag rondb-standalone:$RONDB_VERSION_STABLE \
+              --tag hopsworks/$ARM_IMAGE_NAME:$RONDB_VERSION_STABLE \
+              --tag hopsworks/$ARM_IMAGE_NAME:latest \
               --platform=linux/arm64 \
+              --output type=registry \
               --build-arg RONDB_VERSION=$RONDB_VERSION_STABLE \
               --build-arg RONDB_TARBALL_LOCAL_REMOTE=remote \
-              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_STABLE-linux-glibc2.35-arm64_v8.tar.gz
-      
-      - name: Push ARM64 images to Dockerhub
+              --build-arg RONDB_TARBALL_URI=https://repo.hops.works/master/rondb-$RONDB_VERSION_STABLE-linux-glibc2.35-arm64_v8.tar.gz \
+              --cache-to type=registry,ref=hopsworks/rondb-standalone-cache,mode=max \
+              --cache-from type=registry,ref=hopsworks/rondb-standalone-cache,mode=max
+
+  build-and-push-cross-platform-image:
+    runs-on: ubuntu-latest
+    if: github.repository == 'logicalclocks/rondb-docker' && github.ref_name == 'main'
+    needs: [integration-test-and-package, build-and-push-ARM64]
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@v2
+        with:
+          username: hopsworks
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push multi-platform image
         run: |
-          docker tag rondb-standalone:$RONDB_VERSION_LTS hopsworks/rondb-standalone:$RONDB_VERSION_LTS
-          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
-          docker tag rondb-standalone:$RONDB_VERSION_STABLE hopsworks/rondb-standalone:latest
-          docker push hopsworks/rondb-standalone:$RONDB_VERSION_LTS
-          docker push hopsworks/rondb-standalone:$RONDB_VERSION_STABLE
-          docker push hopsworks/rondb-standalone:latest
+          docker buildx imagetools create -t hopsworks/rondb-standalone:$RONDB_VERSION_LTS \
+            hopsworks/$AMD_IMAGE_NAME:$RONDB_VERSION_LTS \
+            hopsworks/$ARM_IMAGE_NAME:$RONDB_VERSION_LTS
+          docker buildx imagetools create -t hopsworks/rondb-standalone:$RONDB_VERSION_STABLE \
+            hopsworks/$AMD_IMAGE_NAME:$RONDB_VERSION_STABLE \
+            hopsworks/$ARM_IMAGE_NAME:$RONDB_VERSION_STABLE
+          docker buildx imagetools create -t hopsworks/rondb-standalone:latest \
+            hopsworks/$AMD_IMAGE_NAME:latest \
+            hopsworks/$ARM_IMAGE_NAME:latest

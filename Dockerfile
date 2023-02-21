@@ -18,8 +18,8 @@ ARG OPEN_SSL_VERSION=1.1.1s
 RUN echo "Running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 RUN echo "TARGETARCH: $TARGETARCH; TARGETVARIANT: $TARGETVARIANT"
 
-RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
-    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
+RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt-$TARGETPLATFORM \
+    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists-$TARGETPLATFORM \
     apt-get update -y \
     && apt-get install -y wget tar gzip \
     libaio1 libaio-dev \
@@ -46,8 +46,8 @@ RUN mkdir $DOWNLOADS_CACHE_DIR
 #   commands are from https://linuxpip.org/install-openssl-linux/
 ENV OPENSSL_ROOT=/usr/local/ssl
 RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
-    --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt \
-    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists \
+    --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt-$TARGETPLATFORM \
+    --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists-$TARGETPLATFORM \
     apt-get update -y \
     && apt-get install -y build-essential checkinstall zlib1g-dev \
     && wget -N --progress=bar:force -P $DOWNLOADS_CACHE_DIR \
