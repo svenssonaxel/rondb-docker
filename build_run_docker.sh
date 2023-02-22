@@ -573,6 +573,7 @@ fi
 # Remove last semi-colon from MULTI_MYSQLD_IPS
 MULTI_MYSQLD_IPS=${MULTI_MYSQLD_IPS%?}
 
+API_NODE_ID=195
 if [ "$NUM_API_NODES" -gt 0 ]; then
     for CONTAINER_NUM in $(seq "$NUM_API_NODES"); do
         SERVICE_NAME="api_$CONTAINER_NUM"
@@ -640,9 +641,9 @@ if [ "$NUM_API_NODES" -gt 0 ]; then
 
         NODE_ID_OFFSET=$(($((CONTAINER_NUM - 1)) * API_SLOTS_PER_CONTAINER))
         for SLOT_NUM in $(seq "$API_SLOTS_PER_CONTAINER"); do
-            NODE_ID=$((195 + NODE_ID_OFFSET + $((SLOT_NUM - 1))))
+            API_NODE_ID=$((195 + NODE_ID_OFFSET + $((SLOT_NUM - 1))))
             # NodeId, NodeActive, ArbitrationRank, HostName
-            SLOT=$(printf "$CONFIG_INI_API_TEMPLATE" "$NODE_ID" "1" "1" "$SERVICE_NAME")
+            SLOT=$(printf "$CONFIG_INI_API_TEMPLATE" "$API_NODE_ID" "1" "1" "$SERVICE_NAME")
             CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
         done
 
@@ -654,6 +655,17 @@ if [ "$NUM_API_NODES" -gt 0 ]; then
 fi
 # Remove last semi-colon from MULTI_API_IPS
 MULTI_API_IPS=${MULTI_API_IPS%?}
+
+# Create empty API slots without HostNames to connect other
+# services in outside containers; e.g. apps using ClusterJ or
+# the NDB API. Important: these containers need to first be
+# connected to the cluster's Docker Compose network.
+for EMPTY_API_SLOT in $(seq "$EMPTY_API_SLOTS"); do
+    API_NODE_ID=$((API_NODE_ID + 1))
+    # NodeId, NodeActive, ArbitrationRank, HostName
+    SLOT=$(printf "$CONFIG_INI_API_TEMPLATE" "$API_NODE_ID" "1" "0" "")  # Empty HostName
+    CONFIG_INI=$(printf "%s\n\n%s" "$CONFIG_INI" "$SLOT")
+done
 
 # Append volumes to end of file if docker volumes are used
 if [ "$VOLUME_TYPE" == docker ]; then
