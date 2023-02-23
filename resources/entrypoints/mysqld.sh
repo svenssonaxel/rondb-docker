@@ -135,12 +135,12 @@ DUMMY_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 
 # Benchmarking table; all other tables will be created by the benchmakrs themselves
 echo "CREATE DATABASE IF NOT EXISTS \`dbt2\` ;" | mysql
+echo "CREATE DATABASE IF NOT EXISTS \`ycsb\` ;" | mysql
 
 # shellcheck disable=SC2153
 if [ "$MYSQL_USER" ]; then
     echo "[entrypoints/mysqld.sh] Running this command now:"
     echo "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD' ;"
-
     echo "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD' ;" | mysql
 
     # TODO: Consider placing into docker-entrypoint-initdb.d
@@ -149,12 +149,12 @@ if [ "$MYSQL_USER" ]; then
     echo "GRANT ALL PRIVILEGES ON \`sysbench%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
     echo "GRANT ALL PRIVILEGES ON \`dbt%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
     echo "GRANT ALL PRIVILEGES ON \`sbtest%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
+    echo "GRANT ALL PRIVILEGES ON \`ycsb%\`.* TO '$MYSQL_USER'@'%' ;" | mysql
 else
     echo '[entrypoints/mysqld.sh] Not creating custom user. MYSQL_USER and MYSQL_PASSWORD must be specified to do so.'
 fi
 
-# TODO: Mount this via Docker
-for f in /docker-entrypoint-initdb.d/*; do
+for f in ./docker_entrypoints/rondb_standalone/init_scripts/*; do
     case "$f" in
     *.sh)
         echo "[entrypoints/mysqld.sh] running $f"
@@ -162,7 +162,7 @@ for f in /docker-entrypoint-initdb.d/*; do
         ;;
     *.sql)
         echo "[entrypoints/mysqld.sh] running $f"
-        "${mysql[@]}" <"$f" && echo
+        cat $f | mysql
         ;;
     *) echo "[entrypoints/mysqld.sh] ignoring $f" ;;
     esac
