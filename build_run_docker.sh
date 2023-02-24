@@ -1,6 +1,6 @@
 #!/bin/bash
 # Generating RonDB clusters of variable sizes with docker compose
-# Copyright (c) 2022 Hopsworks AB and/or its affiliates.
+# Copyright (c) 2022, 2023 Hopsworks AB and/or its affiliates.
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -33,27 +33,57 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 # Repo version
 VERSION="$(< "$SCRIPT_DIR/VERSION" sed -e 's/^[[:space:]]*//')"
 
+################
+### Defaults ###
+################
+
+NUM_MGM_NODES=1
+NUM_MYSQL_NODES=0
+NUM_API_NODES=0
+REPLICATION_FACTOR=1
+NODE_GROUPS=1
+RUN_BENCHMARK=
+VOLUME_TYPE=docker
+SAVE_SAMPLE_FILES=
+DETACHED=
+RONDB_SIZE=small
+RONDB_VERSION=latest
+
 function print_usage() {
     cat <<EOF
 RonDB-Docker version: $VERSION
 
-Usage: $0    
-    [-h         --help                              ]
-    [-v         --rondb-version             <string>]
-    [-ruri      --rondb-tarball-uri         <string>]
-    [-m         --num-mgm-nodes             <int>   ]
-    [-g         --node-groups               <int>   ]
-    [-r         --replication-factor        <int>   ]
-    [-my        --num-mysql-nodes           <int>   ]
-    [-a         --num-api-nodes             <int>   ]
-    [-b         --run-benchmark             <string>
-                    Options: <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>
-                                                    ]
-    [-pd        --pull-dockerhub-image              ]
-    [-rtarl     --rondb-tarball-is-local            ]
-    [-lv        --volumes-in-local-dir              ]
-    [-sf        --save-sample-files                 ]
-    [-d         --detached                          ]
+Usage: $0
+    [-h     --help                                              ]
+    [-v     --rondb-version                             <string>
+                Default: $RONDB_VERSION                         ]
+    [-tp    --rondb-tarball-path                        <string>
+                Build Dockerfile with a local tarball           
+                Default: pull image from Dockerhub              ]
+    [-tu    --rondb-tarball-url                         <string>
+                Build Dockerfile with a remote tarball
+                Default: pull image from Dockerhub              ]
+    [-m     --num-mgm-nodes                             <int>   ]
+    [-g     --node-groups                               <int>   ]
+    [-r     --replication-factor                        <int>   ]
+    [-my    --num-mysql-nodes                           <int>   ]
+    [-a     --num-api-nodes                             <int>   ]
+    [-b     --run-benchmark                             <string>
+                Options: <sysbench_single, sysbench_multi, 
+                    dbt2_single>                                ]
+    [-lv    --volumes-in-local-dir                              ]
+    [-sf    --save-sample-files                                 ]
+    [-d     --detached                                          ]
+    [-s     --size                                      <string>
+                Options: <mini, small, medium, large, xlarge>
+                Default: $RONDB_SIZE
+
+                The size of the machine that you are running 
+                this script from.
+
+                This parameter is only intended for the
+                wrapper script run.sh in order to easily create
+                clusters that consume varying resources.        ]
 EOF
 }
 
@@ -65,19 +95,6 @@ fi
 #######################
 #### CLI Arguments ####
 #######################
-
-# Defaults
-RONDB_TARBALL_LOCAL_REMOTE=remote
-NUM_MGM_NODES=1
-NUM_MYSQL_NODES=0
-NUM_API_NODES=0
-REPLICATION_FACTOR=1
-NODE_GROUPS=1
-RUN_BENCHMARK=
-VOLUME_TYPE=docker
-PULL_DOCKERHUB_IMAGE=
-SAVE_SAMPLE_FILES=
-DETACHED=
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -93,8 +110,13 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    -ruri | --rondb-tarball-uri)
-        RONDB_TARBALL_URI="$2"
+    -tp | --rondb-tarball-path)
+        RONDB_TARBALL_PATH="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    -tu | --rondb-tarball-url)
+        RONDB_TARBALL_URL="$2"
         shift # past argument
         shift # past value
         ;;
@@ -130,16 +152,6 @@ while [[ $# -gt 0 ]]; do
         shift # past value
         ;;
 
-    -pd | --pull-dockerhub-image)
-        PULL_DOCKERHUB_IMAGE=1
-        shift # past argument
-        ;;
-
-    -rtarl | --rondb-tarball-is-local)
-        RONDB_TARBALL_LOCAL_REMOTE=local
-        shift # past argument
-        ;;
-
     -d | --detached)
         DETACHED="-d"
         shift # past argument
@@ -153,6 +165,11 @@ while [[ $# -gt 0 ]]; do
     -sf | --save-sample-files)
         SAVE_SAMPLE_FILES=1
         shift # past argument
+        ;;
+    -s | --size)
+        RONDB_SIZE="$2"
+        shift # past argument
+        shift # past value
         ;;
 
     *)                     # unknown option
@@ -170,9 +187,8 @@ print-parsed-arguments() {
     echo "#################"
     echo
     echo "RonDB version                 = ${RONDB_VERSION}"
-    echo "Pull Dockerhub image          = ${PULL_DOCKERHUB_IMAGE}"
-    echo "RonDB tarball local/remote    = ${RONDB_TARBALL_LOCAL_REMOTE}"
-    echo "RonDB tarball URI             = ${RONDB_TARBALL_URI}"
+    echo "RonDB tarball path            = ${RONDB_TARBALL_PATH}"
+    echo "RonDB tarball url             = ${RONDB_TARBALL_URL}"
     echo "Number of management nodes    = ${NUM_MGM_NODES}"
     echo "Node groups                   = ${NODE_GROUPS}"
     echo "Replication factor            = ${REPLICATION_FACTOR}"
@@ -182,6 +198,7 @@ print-parsed-arguments() {
     echo "Volume type docker/local      = ${VOLUME_TYPE}"
     echo "Save sample files             = ${SAVE_SAMPLE_FILES}"
     echo "Run detached                  = ${DETACHED}"
+    echo "Run with RonDB size           = ${RONDB_SIZE}"
     echo
 }
 print-parsed-arguments
@@ -196,41 +213,43 @@ if [[ -n $1 ]]; then
     exit 1
 fi
 
-if [ -n "$PULL_DOCKERHUB_IMAGE" ]; then
-    if [ -n "$RONDB_TARBALL_URI" ]; then
-        echo "Cannot specify both a tarball URI and pull from Dockerhub"
-        exit 1
-    fi
-else
-    if [ ! -n "$RONDB_TARBALL_URI" ]; then
-        echo "Either a tarball URI must be specified or set the flag to pull the image from Dockerhub"
-        exit 1
-    fi
+if [ -n "$RONDB_TARBALL_PATH" ] && [ -n "$RONDB_TARBALL_URL" ]; then
+    echo "Cannot specify both a RonDB tarball path and url" >&2
+    print_usage
+    exit 1
 fi
 
 if [ "$NUM_MGM_NODES" -lt 1 ]; then
-    echo "At least 1 mgmd is required"
+    echo "At least 1 mgmd is required" >&2
     exit 1
-elif [ "$REPLICATION_FACTOR" -lt 1 ] || [ "$REPLICATION_FACTOR" -gt 4 ]; then
-    echo "The replication factor has to be >=1 and <5; It is currently $REPLICATION_FACTOR"
+elif [ "$REPLICATION_FACTOR" -lt 1 ] || [ "$REPLICATION_FACTOR" -gt 3 ]; then
+    echo "The replication factor has to be >=1 and <4; It is currently $REPLICATION_FACTOR" >&2
     exit 1
 elif [ "$NODE_GROUPS" -lt 1 ]; then
-    echo "At least 1 node group is required"
+    echo "At least 1 node group is required" >&2
+    exit 1
+fi
+
+if [ "$RONDB_SIZE" != "small" ] && \
+   [ "$RONDB_SIZE" != "mini" ] && \
+   [ "$RONDB_SIZE" != "medium" ] && \
+   [ "$RONDB_SIZE" != "large" ] && \
+   [ "$RONDB_SIZE" != "xlarge" ]; then
+    echo "size has to be one of <mini, small, medium, large, xlarge>" >&2
     exit 1
 fi
 
 if [ -n "$RUN_BENCHMARK" ]; then
     if [ "$RUN_BENCHMARK" != "sysbench_single" ] && \
        [ "$RUN_BENCHMARK" != "sysbench_multi" ] && \
-       [ "$RUN_BENCHMARK" != "dbt2_single" ] && \
-       [ "$RUN_BENCHMARK" != "dbt2_multi" ]; then
-        echo "Benchmark has to be one of <sysbench_single, sysbench_multi, dbt2_single, dbt2_multi>"
+       [ "$RUN_BENCHMARK" != "dbt2_single" ]; then
+        echo "Benchmark has to be one of <sysbench_single, sysbench_multi, dbt2_single>" >&2
         exit 1
     elif [ "$NUM_API_NODES" -lt 1 ]; then
-        echo "At least one api is required to run benchmarks"
+        echo "At least one api is required to run benchmarks" >&2
         exit 1
     elif [ "$NUM_MYSQL_NODES" -lt 1 ]; then
-        echo "At least one mysqld is required to run benchmarks"
+        echo "At least one mysqld is required to run benchmarks" >&2
         exit 1
     fi
 
@@ -238,21 +257,21 @@ if [ -n "$RUN_BENCHMARK" ]; then
     # One api container can however also run multiple Sysbench instances against multiple mysqld containers
     if [ "$RUN_BENCHMARK" == "sysbench_multi" ]; then
         if [ "$NUM_MYSQL_NODES" -lt "$NUM_API_NODES" ]; then
-            echo "For sysbench_multi, there should be at least as many mysqld as api containers"
+            echo "For sysbench_multi, there should be at least as many mysqld as api containers" >&2
             exit 1
         fi
     fi
 
     if [ "$RUN_BENCHMARK" == "sysbench_multi" ] || [ "$RUN_BENCHMARK" == "dbt2_multi" ]; then
         if [ "$NUM_MYSQL_NODES" -lt 2 ]; then
-            echo "At least two mysqlds are required to run the multi-benchmarks"
+            echo "At least two mysqlds are required to run the multi-benchmarks" >&2
             exit 1
         fi
     fi
 
     if [ "$RUN_BENCHMARK" == "dbt2_single" ] || [ "$RUN_BENCHMARK" == "dbt2_multi" ]; then
         if [ "$NUM_API_NODES" -gt 1 ]; then
-            echo "Can only run dbt2 benchmarks with one api container"
+            echo "Can only run dbt2 benchmarks with one api container" >&2
             exit 1
         fi
     fi
@@ -260,10 +279,14 @@ if [ -n "$RUN_BENCHMARK" ]; then
     # TODO: Make this work with BENCHMARK_SERVERS in sysbench_multi; This requires some
     #   care in synchronizing the api nodes when executing the benchmark.
     if [ "$NUM_API_NODES" -gt 1 ]; then
-        echo "Running more than one api container for Sysbench benchmarks is currently not supported"
+        echo "Running more than one api container for Sysbench benchmarks is currently not supported" >&2
         exit 1
     fi
 fi
+
+source "$SCRIPT_DIR/environments/machine_sizes/$RONDB_SIZE.env"
+# shellcheck source=./environments/common.env
+source "$SCRIPT_DIR/environments/common.env"
 
 # We use this for the docker-compose project name, which will not allow "."
 RONDB_VERSION_NO_DOT=$(echo "$RONDB_VERSION" | tr -d '.')
@@ -308,9 +331,9 @@ AUTOBENCH_DBT2_MULTI_FILEPATH="$DBT2_MULTI_DIR/autobench.conf"
 DBT2_CONF_SINGLE_FILEPATH="$DBT2_SINGLE_DIR/dbt2_run_1.conf"
 DBT2_CONF_MULTI_FILEPATH="$DBT2_MULTI_DIR/dbt2_run_1.conf"
 if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
-    cp "$SCRIPT_DIR/resources/config_templates/dbt2_run_1.conf.single" "$DBT2_CONF_SINGLE_FILEPATH"
+    echo "$DBT2_RUN_SINGLE" > "$DBT2_CONF_SINGLE_FILEPATH"
     if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
-        cp "$SCRIPT_DIR/resources/config_templates/dbt2_run_1.conf.multi" "$DBT2_CONF_MULTI_FILEPATH"
+        echo "$DBT2_RUN_MULTI" > "$DBT2_CONF_MULTI_FILEPATH"
     fi
 fi
 
@@ -321,13 +344,20 @@ BENCH_DIR="/home/mysql/benchmarks"
 #######################
 #######################
 
-echo "Building RonDB Docker image for local platform"
-
 RONDB_IMAGE_NAME="rondb-standalone:$RONDB_VERSION"
-if [ -n "$PULL_DOCKERHUB_IMAGE" ]; then
+if [ ! -n "$RONDB_TARBALL_PATH" ] && [ ! -n "$RONDB_TARBALL_URL" ]; then
     RONDB_IMAGE_NAME="hopsworks/$RONDB_IMAGE_NAME"
     docker pull $RONDB_IMAGE_NAME
 else
+    echo "Building RonDB Docker image for local platform"
+
+    RONDB_TARBALL_URI=$RONDB_TARBALL_URL
+    RONDB_TARBALL_LOCAL_REMOTE=remote
+    if [ -n "$RONDB_TARBALL_PATH" ]; then
+        RONDB_TARBALL_URI=$RONDB_TARBALL_PATH
+        RONDB_TARBALL_LOCAL_REMOTE=local
+    fi
+
     docker buildx build . \
         --tag $RONDB_IMAGE_NAME \
         --build-arg RONDB_VERSION=$RONDB_VERSION \
@@ -387,11 +417,20 @@ COMMAND_TEMPLATE="
 
 echo "Filling out templates"
 
-# shellcheck source=./docker.env
-source "$SCRIPT_DIR/docker.env"
-# shellcheck source=./misc_configs.env
-source "$SCRIPT_DIR/misc_configs.env"
-CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" "$REPLICATION_FACTOR")
+CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" \
+    "$CONFIG_INI_NumCPUs" \
+    "$CONFIG_INI_TotalMemoryConfig" \
+    "$CONFIG_INI_MaxNoOfTables" \
+    "$CONFIG_INI_MaxNoOfAttributes" \
+    "$CONFIG_INI_MaxNoOfTriggers" \
+    "$CONFIG_INI_TransactionMemory" \
+    "$CONFIG_INI_SharedGlobalMemory" \
+    "$CONFIG_INI_ReservedConcurrentOperations" \
+    "$CONFIG_INI_FragmentLogFileSize" \
+    "$REPLICATION_FACTOR" \
+    "$CONFIG_INI_MaxNoOfConcurrentOperations"
+)
+
 MGM_CONNECTION_STRING=''
 MGMD_IPS=''
 SINGLE_MYSQLD_IP=''
@@ -699,12 +738,14 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
         AUTOBENCH_SYSBENCH_SINGLE=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" \
             "$SINGLE_MYSQLD_IP" "$MYSQL_USER" "$MYSQL_PASSWORD" \
             "$MYSQLD_SLOTS_PER_CONTAINER" "$MGMD_IPS" \
+            "$AUTO_SYS_THREAD_COUNTS_TO_RUN" "$AUTO_SYS_SYSBENCH_ROWS" \
             "1")
         echo "$AUTOBENCH_SYSBENCH_SINGLE" > "$AUTOBENCH_SYS_SINGLE_FILEPATH"
 
         AUTOBENCH_DBT2_SINGLE=$(printf "$AUTOBENCH_DBT2_TEMPLATE" \
             "$SINGLE_MYSQLD_IP" "$MYSQL_USER" "$MYSQL_PASSWORD" \
-            "$MYSQLD_SLOTS_PER_CONTAINER" "$MGMD_IPS")
+            "$MYSQLD_SLOTS_PER_CONTAINER" "$MGMD_IPS" \
+            "$AUTO_DBT2_DBT2_WAREHOUSES")
         echo "$AUTOBENCH_DBT2_SINGLE" > "$AUTOBENCH_DBT2_SINGLE_FILEPATH"
 
         if [ "$NUM_MYSQL_NODES" -gt 1 ]; then
@@ -713,12 +754,14 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
             AUTOBENCH_SYSBENCH_MULTI=$(printf "$AUTOBENCH_SYSBENCH_TEMPLATE" \
                 "$MULTI_MYSQLD_IPS" "$MYSQL_USER" "$MYSQL_PASSWORD" \
                 "$MYSQLD_SLOTS_PER_CONTAINER" "$MGMD_IPS" \
+                "$AUTO_SYS_THREAD_COUNTS_TO_RUN" "$AUTO_SYS_SYSBENCH_ROWS" \
                 "$NUM_MYSQL_NODES")
             echo "$AUTOBENCH_SYSBENCH_MULTI" > "$AUTOBENCH_SYS_MULTI_FILEPATH"
 
             AUTOBENCH_DBT2_MULTI=$(printf "$AUTOBENCH_DBT2_TEMPLATE" \
                 "$MULTI_MYSQLD_IPS" "$MYSQL_USER" "$MYSQL_PASSWORD" \
-                "$MYSQLD_SLOTS_PER_CONTAINER" "$MGMD_IPS")
+                "$MYSQLD_SLOTS_PER_CONTAINER" "$MGMD_IPS" \
+                "$AUTO_DBT2_DBT2_WAREHOUSES")
             echo "$AUTOBENCH_DBT2_MULTI" > "$AUTOBENCH_DBT2_MULTI_FILEPATH"
         fi
     fi

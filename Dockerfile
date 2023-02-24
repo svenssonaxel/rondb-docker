@@ -21,7 +21,7 @@ RUN echo "TARGETARCH: $TARGETARCH; TARGETVARIANT: $TARGETVARIANT"
 RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt-$TARGETPLATFORM \
     --mount=type=cache,target=/var/lib/apt/lists,id=ubuntu22-apt-lists-$TARGETPLATFORM \
     apt-get update -y \
-    && apt-get install -y wget tar gzip \
+    && apt-get install -y wget tar gzip vim \
     libaio1 libaio-dev \
     libncurses5 libnuma-dev \
     bc \
@@ -63,6 +63,8 @@ RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
     # `make install` places shared libraries into $OPENSSL_ROOT
 
 ENV LD_LIBRARY_PATH=$OPENSSL_ROOT/lib/:$LD_LIBRARY_PATH
+# So the path survives changing user
+RUN echo $LD_LIBRARY_PATH > /etc/ld.so.conf
 RUN ldconfig --verbose
 
 # Copying bare minimum of Hopsworks cloud environment for now
@@ -97,8 +99,12 @@ ENV RONDB_BIN_DIR_SYMLINK=$HOPSWORK_DIR/mysql
 RUN ln -s $RONDB_BIN_DIR $RONDB_BIN_DIR_SYMLINK
 
 ENV PATH=$RONDB_BIN_DIR_SYMLINK/bin:$PATH
+# So the path survives changing user to mysql
+RUN echo "export PATH=$PATH" >> /home/mysql/.profile
 
 ENV LD_LIBRARY_PATH=$RONDB_BIN_DIR_SYMLINK/lib:$LD_LIBRARY_PATH
+# So the path survives changing user
+RUN echo $LD_LIBRARY_PATH > /etc/ld.so.conf
 RUN ldconfig --verbose
 
 ENV RONDB_DATA_DIR=$HOPSWORK_DIR/mysql-cluster
