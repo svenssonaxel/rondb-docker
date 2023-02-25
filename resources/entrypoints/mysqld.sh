@@ -154,7 +154,7 @@ else
     echo '[entrypoints/mysqld.sh] Not creating custom user. MYSQL_USER and MYSQL_PASSWORD must be specified to do so.'
 fi
 
-for f in ./docker_entrypoints/rondb_standalone/init_scripts/*; do
+for f in ./docker/rondb_standalone/entrypoints/init_scripts/*; do
     case "$f" in
     *.sh)
         echo "[entrypoints/mysqld.sh] running $f"

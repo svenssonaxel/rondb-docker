@@ -145,31 +145,27 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-
     -b | --run-benchmark)
         RUN_BENCHMARK="$2"
         shift # past argument
         shift # past value
         ;;
-
-    -d | --detached)
-        DETACHED="-d"
-        shift # past argument
-        ;;
-
-    -lv | --volumes-in-local-dir)
-        VOLUME_TYPE=local
-        shift # past argument
-        ;;
-
-    -sf | --save-sample-files)
-        SAVE_SAMPLE_FILES=1
-        shift # past argument
-        ;;
     -s | --size)
         RONDB_SIZE="$2"
         shift # past argument
         shift # past value
+        ;;
+    -d | --detached)
+        DETACHED="-d"
+        shift # past argument
+        ;;
+    -lv | --volumes-in-local-dir)
+        VOLUME_TYPE=local
+        shift # past argument
+        ;;
+    -sf | --save-sample-files)
+        SAVE_SAMPLE_FILES=1
+        shift # past argument
         ;;
 
     *)                     # unknown option
@@ -392,6 +388,13 @@ service-template() {
 " "$SERVICE_NAME" "$RONDB_IMAGE_NAME" "$SERVICE_NAME";
 }
 
+DEPENDS_ON_FIELD="
+      depends_on:"
+
+DEPENDS_ON_TEMPLATE="
+        %s:
+          condition: service_healthy"
+
 VOLUMES_FIELD="
       volumes:"
 
@@ -407,6 +410,13 @@ ENV_FIELD="
 ENV_VAR_TEMPLATE="
       - %s=%s"
 
+HEALTHCHECK_TEMPLATE="
+      healthcheck:
+        test: %s
+        interval: %ss
+        timeout: %ss
+        retries: %s
+        start_period: %ss"
 
 COMMAND_TEMPLATE="
       command: %s"
@@ -433,6 +443,7 @@ CONFIG_INI=$(printf "$CONFIG_INI_TEMPLATE" \
 
 MGM_CONNECTION_STRING=''
 MGMD_IPS=''
+NDBD_IPS=()
 SINGLE_MYSQLD_IP=''
 MULTI_MYSQLD_IPS=''
 
@@ -524,9 +535,15 @@ for CONTAINER_NUM in $(seq $NUM_DATA_NODES); do
     NODE_ID=$CONTAINER_NUM
 
     SERVICE_NAME="ndbd_$CONTAINER_NUM"
+    NDBD_IPS+=("$SERVICE_NAME")
     template="$(service-template)"
     command=$(printf "$COMMAND_TEMPLATE" "[\"ndbmtd\", \"--ndb-nodeid=$NODE_ID\", \"--initial\", \"--ndb-connectstring=$MGM_CONNECTION_STRING\"]")
     template+="$command"
+
+    # interval, timeout, retries, start_period
+    healthcheck_command="./docker/rondb_standalone/healthcheck.sh $MGM_CONNECTION_STRING $NODE_ID"
+    healthcheck=$(printf "$HEALTHCHECK_TEMPLATE" "$healthcheck_command" "15" "15" "3" "20")
+    template+="$healthcheck"
 
     template+="
       deploy:
@@ -557,12 +574,15 @@ if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
         template="$(service-template)"
         command=$(printf "$COMMAND_TEMPLATE" "[\"mysqld\"]")
         template+="$command"
-        # template+="$RESOURCES_SNIPPET"
 
         # mysqld needs this, or will otherwise complain "mbind: Operation not permitted".
         template+="
       cap_add:
         - SYS_NICE"
+
+        # interval, timeout, retries, start_period
+        healthcheck=$(printf "$HEALTHCHECK_TEMPLATE" "mysqladmin ping -uroot" "10" "2" "6" "25")
+        template+="$healthcheck"
 
         # Make sure these memory boundaries are allowed in Docker settings!
         # To check whether they are being used use `docker stats`
@@ -627,15 +647,25 @@ if [ "$NUM_API_NODES" -gt 0 ]; then
                 GENERATE_DBT2_DATA_FLAG="--generate-dbt2-data"
             fi
 
-            # Use the ndb_waiter to wait until RonDB has started before running benchmark
-            # Added extra sleep for mysqlds; may have to increase this
+            # MySQLd might be up, but still not entirely ready yet..
             command=$(printf "$COMMAND_TEMPLATE" ">
-          bash -c \"ndb_waiter --ndb-connectstring=$MGM_CONNECTION_STRING &&
-                    sleep 35 &&
-                    bench_run.sh --verbose --default-directory $BENCH_DIR/$RUN_BENCHMARK $GENERATE_DBT2_DATA_FLAG\"")
+          bash -c \"sleep 5 && bench_run.sh --verbose --default-directory $BENCH_DIR/$RUN_BENCHMARK $GENERATE_DBT2_DATA_FLAG\"")
         fi
 
         template+="$command"
+
+        # There are cases where the MySQLd is up, but the cluster is not.
+        # Also, we may not have MySQLds configured at all.
+        template+="$DEPENDS_ON_FIELD"
+        for NDBD_IP in "${NDBD_IPS[@]}"; do
+            depends_on=$(printf "$DEPENDS_ON_TEMPLATE" "$NDBD_IP")
+            template+="$depends_on"
+        done
+
+        if [ "$NUM_MYSQL_NODES" -gt 0 ]; then
+            depends_on=$(printf "$DEPENDS_ON_TEMPLATE" "mysqld_1")
+            template+="$depends_on"
+        fi
 
         # Make sure these memory boundaries are allowed in Docker settings!
         # To check whether they are being used use `docker stats`

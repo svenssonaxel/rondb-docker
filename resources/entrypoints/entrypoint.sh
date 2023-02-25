@@ -23,4 +23,4 @@ usermod -g "$HOST_GROUP_ID" mysql
 usermod -a -G mysql mysql
 
 # Execute main.sh as mysql user with preserved environment and arguments.
-sudo -E -u mysql "$(pwd)/docker_entrypoints/rondb_standalone/main.sh" "$@"
+sudo -E -u mysql "$(pwd)/docker/rondb_standalone/entrypoints/main.sh" "$@"

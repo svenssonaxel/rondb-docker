@@ -130,8 +130,9 @@ COPY --chown=mysql:mysql ./resources/rondb_scripts $SCRIPTS_DIR
 RUN touch $MYSQL_UNIX_PORT
 
 # We expect this image to be used as base image to other
-# images with additional entrypoints
-COPY --chown=mysql:mysql ./resources/entrypoints ./docker_entrypoints/rondb_standalone
+# images with additional files specific to Docker
+COPY --chown=mysql:mysql ./resources/entrypoints ./docker/rondb_standalone/entrypoints
+COPY --chown=mysql:mysql ./resources/healthcheck.sh ./docker/rondb_standalone/healthcheck.sh
 
 # Creating benchmarking files/directories
 ENV BENCHMARKS_DIR=/home/mysql/benchmarks
@@ -141,6 +142,6 @@ RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
 # Avoid changing files if they are already owned by mysql; otherwise image size doubles
 RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
 
-ENTRYPOINT ["./docker_entrypoints/rondb_standalone/entrypoint.sh"]
+ENTRYPOINT ["./docker/rondb_standalone/entrypoints/entrypoint.sh"]
 EXPOSE 3306 33060 11860 1186
 CMD ["mysqld"]

@@ -58,6 +58,7 @@ Usage: $0
                 - xlarge: at least 64 GB of memory and 32 CPU cores ]
     [-lv    --volumes-in-local-dir                                  
                 Replace volumes with local directories              ]
+    [-d     --detached                                              ]
 EOF
 }
 
@@ -96,6 +97,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     -lv | --volumes-in-local-dir)
         VOLUMES_IN_LOCAL_DIR="--volumes-in-local-dir"
+        shift # past argument
+        ;;
+    -d | --detached)
+        DETACHED="-d"
         shift # past argument
         ;;
     *)                     # unknown option
@@ -155,7 +160,7 @@ elif [ -n "$RONDB_TARBALL_URL" ]; then
 fi
 
 EXEC_CMD="$EXEC_CMD --size $RONDB_SIZE"
-EXEC_CMD="$EXEC_CMD $VOLUMES_IN_LOCAL_DIR"
+EXEC_CMD="$EXEC_CMD $VOLUMES_IN_LOCAL_DIR $DETACHED"
 EXEC_CMD="$EXEC_CMD --num-mgm-nodes 1"
 EXEC_CMD="$EXEC_CMD --node-groups 1"
 EXEC_CMD="$EXEC_CMD --replication-factor $REPLICATION_FACTOR"
