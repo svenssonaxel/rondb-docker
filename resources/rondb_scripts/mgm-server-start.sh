@@ -15,6 +15,8 @@ netstat -ltu | grep "1186"
 if [ $? -eq 0 ] ; then
     echo "A management server is already running on $MGM_CONN_STRING" 
     exit 2
+else
+    echo "No management server is running on $MGM_CONN_STRING; we're good to go"
 fi
 
 
@@ -23,8 +25,19 @@ if [ ! -e /srv/hops/mysql/bin/ndb_mgmd ] ; then
     exit 3
 fi
 
+mgmd_command="/srv/hops/mysql/bin/ndb_mgmd --ndb-nodeid=$NDB_MGMD_NODE_ID -f /srv/hops/mysql-cluster/config.ini  --configdir=/srv/hops/mysql-cluster/mgmd --reload --initial"
 
-/srv/hops/mysql/bin/ndb_mgmd --ndb-nodeid=$NDB_MGMD_NODE_ID -f /srv/hops/mysql-cluster/config.ini  --configdir=/srv/hops/mysql-cluster/mgmd --reload --initial
+# This is not in the original cloud setup;
+# It is used for alternative process managers such as supervsisord
+# that cannot daemonize processes.
+if [ -n "$NO_DAEMON" ]; then
+    echo "Starting the MySQL Management as a foreground process"
+    mgmd_command="$mgmd_command --nodaemon"
+    echo "Running command '$mgmd_command'"
+    exec $mgmd_command
+fi
+
+$mgmd_command
 
 
 
