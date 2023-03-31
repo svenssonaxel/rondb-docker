@@ -1,2 +1,6 @@
 MGM_CONN_STRING=
 NDB_NDBD_NODE_ID=
+
+# TODO: Add this to the original cloud setup
+# Setting this to *anything* will cause an initial start
+INITIAL_START=
