@@ -1,12 +1,12 @@
 # RonDB with Docker
 
 This repository creates the possibility of:
-- building cross-platform RonDB images
-- running local (non-production) RonDB clusters with docker-compose
+
+- running local RonDB clusters with docker-compose
 - benchmarking RonDB with Sysbench and DBT2 on localhost
-- developing RonDB & RonDB's REST API server
+- demoing the usage of managed RonDB
+- building multi-platform RonDB images
 - developing applications towards RonDB
-- demo the usage of managed RonDB (upcoming)
 
 To learn more about RonDB, have a look at [rondb.com](https://rondb.com).
 
