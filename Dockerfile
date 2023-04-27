@@ -24,8 +24,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=ubuntu22-apt-$TARGETPLATFORM \
     && apt-get install -y wget tar gzip vim \
     libaio1 libaio-dev \
     libncurses5 libnuma-dev \
-    bc \
+    bc default-jdk maven \
     sudo
+    # Java & Maven are required by YCSB
     # bc is required by dbt2
     # libaio is a dynamic library used by RonDB
     # libncurses5 & libnuma-dev are required for x86 only
@@ -62,6 +63,7 @@ RUN --mount=type=cache,target=$DOWNLOADS_CACHE_DIR \
     # Could also run `make test`
     # `make install` places shared libraries into $OPENSSL_ROOT
 
+# Beware that this is set manually again for the mysql user in the entrypoint
 ENV LD_LIBRARY_PATH=$OPENSSL_ROOT/lib/:$LD_LIBRARY_PATH
 # So the path survives changing user
 RUN echo $LD_LIBRARY_PATH > /etc/ld.so.conf
@@ -100,6 +102,7 @@ RUN ln -s $RONDB_BIN_DIR $RONDB_BIN_DIR_SYMLINK
 
 ENV PATH=$RONDB_BIN_DIR_SYMLINK/bin:$PATH
 
+# Beware that this is set manually again for the mysql user in the entrypoint
 ENV LD_LIBRARY_PATH=$RONDB_BIN_DIR_SYMLINK/lib:$LD_LIBRARY_PATH
 # So the path survives changing user
 RUN echo $LD_LIBRARY_PATH > /etc/ld.so.conf
@@ -146,5 +149,5 @@ RUN mkdir $BENCHMARKS_DIR && cd $BENCHMARKS_DIR \
 RUN chown mysql:mysql --from=root:root -R $HOPSWORK_DIR /home/mysql
 
 ENTRYPOINT ["./docker/rondb_standalone/entrypoints/entrypoint.sh"]
-EXPOSE 3306 33060 11860 1186
+EXPOSE 3306 33060 11860 1186 4406 5406
 CMD ["mysqld"]

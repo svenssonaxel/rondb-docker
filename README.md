@@ -4,7 +4,7 @@ This repository creates the possibility of:
 
 - running local RonDB clusters with docker-compose
 - benchmarking RonDB with Sysbench and DBT2 on localhost
-- demoing the usage of managed RonDB
+- demoing the usage of [managed RonDB](/managed_rondb)
 - building multi-platform RonDB images
 - developing applications towards RonDB
 
@@ -85,7 +85,8 @@ Commands to run:
   --node-groups 1 \
   --replication-factor 2 \
   --num-mysql-nodes 1 \
-  --num-api-nodes 1
+  --num-rest-api-nodes 1 \
+  --num-benchmarking-nodes 1
 
 # Build and run image **for local platform** in docker-compose using local RonDB tarball (download it first!)
 # Beware that the local platform is linux/arm64 in this case
@@ -96,7 +97,8 @@ Commands to run:
   --node-groups 1 \
   --replication-factor 2 \
   --num-mysql-nodes 1 \
-  --num-api-nodes 1
+  --num-rest-api-nodes 1 \
+  --num-benchmarking-nodes 1
 
 # Build cross-platform image (linux/arm64 here)
 docker buildx build . --platform=linux/arm64 -t rondb-standalone:21.04.12 \
@@ -150,7 +152,7 @@ The Docker images come with a set of benchmarks pre-installed. To run any of the
 
 # Running with a custom size; The benchmarks are run on the API containers and make queries towards the mysqld containers; this means that both types are needed.
 ./build_run_docker.sh \
-  -v latest -m 1 -g 1 -r 2 -my 2 -a 1 \
+  -v latest -m 1 -g 1 -r 2 -my 2 -bn 1 \
   --run-benchmark <sysbench_single, sysbench_multi, dbt2_single>
 ```
 
@@ -163,3 +165,11 @@ If you use the `-lv` flag, the results of the benchmarks are mounted into the lo
 ## ***New***: Managed RonDB
 
 Apart from using/building the Docker image `rondb-standalone`, RonDB can also be run as a managed database, using the Docker image `hopsworks/rondb-managed`. This means that the cluster becomes dynamic - one can add nodes, perform rolling software upgrades, do backups and even restore from backups. See the directory [managed_rondb](managed_rondb) for more.
+
+## Preliminary Notes for YCSB benchmarking
+
+Setup:
+* Change [resources/entrypoints/init_scripts/setup_ycsb.sql](resources/entrypoints/init_scripts/setup_ycsb.sql) to create different tables
+
+Reasons for failure:
+* When running `ycsb load`, all data is first loaded into memory of the benchmarking container. Check the available memory for benchmarking containers in [environment files](/environments/machine_sizes) and compare it to `fieldcount * fieldlength * recordcount` in the YCSB workload file. The same amount of memory needs to be supported by the ndbmtd container.
