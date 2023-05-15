@@ -9,7 +9,7 @@ if [ "X$USERID" != "Xmysql" ]; then
 fi
 
 echo "Testing to see if a cluster is already running on 1186 ..."
-netstat -ltu | grep "1186"
+ss -Hltu | grep "1186"
 
 if [ $? -eq 0 ]; then
     echo "A management server is already running on 1186"
