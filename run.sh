@@ -60,8 +60,8 @@ Usage: $0
                 Replace volumes with local directories              ]
     [-d     --detached                                              ]
     [-su    --suffix
-                suffix to add the the project name.
-                Add a suffix if you want to run seversl cluster in parallel]
+                The suffix to add to the project name. Add a suffix
+                if you want to run several clusters in parallel.    ]
 EOF
 }
 
@@ -107,7 +107,7 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         ;;
     -su | --suffix)
-	USER_SUFFIX="$2"
+        USER_SUFFIX="$2"
         shift # past argument
         shift # past value
         ;;
